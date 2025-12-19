@@ -1,0 +1,154 @@
+@host = http://localhost:5000
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjlkY2Q1YTAwN2YxMzNiNGYxMGUxZSIsImlhdCI6MTc2NjE2NjkzMCwiZXhwIjoxNzY4NzU4OTMwfQ.GsrwXNY1wQpoU_g48sTyZPTT9WuuI-gpAw67TbzZ4Fs
+# THAY THẾ {{token}} bằng Token JWT hợp lệ sau khi đăng nhập thành công (POST /api/auth/login)
+
+### --- TEST 1: LẤY DANH SÁCH TẤT CẢ TÀI KHOẢN (GET) ---
+# Endpoint: GET /api/users
+# Chức năng: UC011-UC013 - Xem danh sách tài khoản cán bộ
+GET {{host}}/api/users
+Authorization: Bearer {{token}}
+
+### --- TEST 2: TẠO TÀI KHOẢN CĂN BỘ MỚI THÀNH CÔNG (CREATE) ---
+# Endpoint: POST /api/users
+# Chức năng: UC011 - Thêm tài khoản cán bộ
+# Yêu cầu: Token xác thực + JSON hợp lệ (username, password, fullName, role)
+@newUserId = 
+POST {{host}}/api/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "username": "manager01",
+    "password": "Manager@123",
+    "fullName": "Nguyễn Thị Quản Lý",
+    "role": "manager"
+}
+
+### --- TEST 3: TẠO TÀI KHOẢN ADMIN MỚI (CREATE ADMIN) ---
+# Endpoint: POST /api/users
+# Chức năng: UC011 - Thêm tài khoản admin
+POST {{host}}/api/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "username": "admin_01",
+    "password": "AdminPower@2025",
+    "fullName": "Trần Văn Quản Trị",
+    "role": "admin"
+}
+
+### --- TEST 4: LẤY CHI TIẾT TÀI KHOẢN VỪA TẠO (GET by ID) ---
+# Endpoint: GET /api/users/:id
+# LƯU Ý: Phải copy ID Tài khoản vừa tạo ở bước 2 hoặc 3 vào biến @userIdToView
+@userIdToView = 694595225f67a2cd1d85af5a
+
+GET {{host}}/api/users/{{userIdToView}}
+Authorization: Bearer {{token}}
+
+### --- TEST 5: SỬA THÔNG TIN TÀI KHOẢN (UPDATE) ---
+# Endpoint: PUT /api/users/:id
+# Chức năng: UC012 - Sửa thông tin tài khoản cán bộ (fullName, role, password)
+# LƯU Ý: Thay {{userIdToView}} bằng ID người dùng muốn sửa
+PUT {{host}}/api/users/{{userIdToView}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "fullName": "Nguyễn Thị Quản Lý Cao Cấp",
+    "role": "manager",
+    "password": "NewPassword@456"
+}
+
+### --- TEST 6: SỬA CHỈ ROLE CỦA TÀI KHOẢN ---
+# Endpoint: PUT /api/users/:id
+# Cập nhật lên admin nếu cần
+PUT {{host}}/api/users/{{userIdToView}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "role": "admin"
+}
+
+### --- TEST 7: SỬA CHỈ FULL NAME ---
+# Endpoint: PUT /api/users/:id
+PUT {{host}}/api/users/{{userIdToView}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "fullName": "Lê Văn Người Quản Lý"
+}
+
+### --- TEST 8: XÓA TÀI KHOẢN (DELETE) ---
+# Endpoint: DELETE /api/users/:id
+# Chức năng: UC013 - Xóa tài khoản cán bộ
+# LƯU Ý: Không thể xóa tài khoản admin cuối cùng
+DELETE {{host}}/api/users/{{userIdToView}}
+Authorization: Bearer {{token}}
+
+### --- TEST 9: KIỂM TRA LỖI - TẠO KHOẢN THIẾU DỮ LIỆU BẮT BUỘC ---
+# Endpoint: POST /api/users
+# Thiếu password
+POST {{host}}/api/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "username": "incomplete_user",
+    "fullName": "Người Dùng Không Hoàn Chỉnh"
+}
+
+### --- TEST 10: KIỂM TRA LỖI - ROLE KHÔNG HỢPLỆ ---
+# Endpoint: POST /api/users
+# Role "superuser" không được hỗ trợ
+POST {{host}}/api/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "username": "test_invalid_role",
+    "password": "TestPassword@123",
+    "fullName": "Người Dùng Để Kiểm Thử",
+    "role": "superuser"
+}
+
+### --- TEST 11: KIỂM TRA LỖI - USERNAME TRÙNG LẶP ---
+# Endpoint: POST /api/users
+# Username "admin" đã tồn tại từ seed script
+POST {{host}}/api/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "username": "admin",
+    "password": "AnyPassword@123",
+    "fullName": "Trùng Admin",
+    "role": "manager"
+}
+
+### --- TEST 12: KIỂM TRA LỖI - CẬP NHẬT USER KHÔNG TỒN TẠI ---
+# Endpoint: PUT /api/users/:id
+# LƯU Ý: Thay ID bằng ObjectId không tồn tại (format hợp lệ nhưng không có trong DB)
+PUT {{host}}/api/users/6933b2d608d6edb18930e999
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "fullName": "Người Không Tồn Tại"
+}
+
+### --- TEST 13: KIỂM TRA LỖI - FORMAT ID KHÔNG HỢPLỆ ---
+# Endpoint: GET /api/users/invalid-id-format
+GET {{host}}/api/users/invalid-id-format
+Authorization: Bearer {{token}}
+
+### --- TEST 14: KIỂM TRA LỖI - XÓA ADMIN CUỐI CÙNG (KHÔNG ĐƯỢC PHÉP) ---
+# Endpoint: DELETE /api/users/:id
+# Giả sử "admin" là admin cuối cùng (sẽ báo lỗi)
+# LƯU Ý: Trước tiên hãy tạo admin khác, rồi mới test xóa admin
+@adminIdToDelete = 6933b2d608d6edb18930e272
+
+DELETE {{host}}/api/users/{{adminIdToDelete}}
+Authorization: Bearer {{token}}

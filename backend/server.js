@@ -6,6 +6,7 @@ const { errorHandler } = require('./middleware/error.middleware');
 
 // Routes imports
 const authRoutes = require('./routes/auth.routes');
+const userRoutes = require('./routes/user.routes');
 const householdRoutes = require('./routes/household.routes');
 const feeRoutes = require('./routes/fee.routes');
 const paymentSessionRoutes = require('./routes/paymentSession.routes');
@@ -21,6 +22,7 @@ app.use(cors()); // Enable CORS for Frontend
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/households', householdRoutes);
 app.use('/api/fees', feeRoutes);
 app.use('/api/paymentSessions', paymentSessionRoutes);
