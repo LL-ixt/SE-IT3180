@@ -7,7 +7,8 @@ import LoginPage from './pages/Auth/LoginPage';
 // import DashboardPage from './pages/Dashboard/DashboardPage'; // Placeholder
 //import FeeManagerPage from './pages/Fees/FeeManagerPage.jsx';
 //import HouseholdPage from './pages/Household/HouseholdPage.jsx';
-import TestAddPaymentSession from './pages/PaymentSessions/AddPaymentSessionModal.jsx';
+import TestEditFeeModal from './pages/Fees/EditFeeModal.jsx';
+import TestDeleteFeeModal from './pages/Fees/DeleteFeeModal.jsx';
 import TestForm from './pages/Fees/AddFeeModal.jsx';
 
 // [NEW] Component Layout chung cho các trang nội bộ
@@ -46,7 +47,7 @@ function App() {
                                 <DashboardLayout> {/* Layout chung cho tất cả trang nội bộ */}
                                     <Routes>
                                         {/* ROUTE GỐC /: Trang chủ/Dashboard */}
-                                        <Route path="/" element={<TestAddPaymentSession />} />
+                                        <Route path="/" element={<TestDeleteFeeModal />} />
                                         {/* TO BE ADDED: Xin chào: Name, Vai trò: Role */}
                                         {/* ROUTE QUẢN LÝ KHOẢN THU */}
                                         {/*<Route path="/fees" element={<FeeManagerPage />} /*}
