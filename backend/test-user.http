@@ -1,5 +1,5 @@
 @host = http://localhost:5000
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjlkY2Q1YTAwN2YxMzNiNGYxMGUxZSIsImlhdCI6MTc2NjE2NjkzMCwiZXhwIjoxNzY4NzU4OTMwfQ.GsrwXNY1wQpoU_g48sTyZPTT9WuuI-gpAw67TbzZ4Fs
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MzJiMWQ2MDhkNmVkYjE4OTMwZTI3MiIsImlhdCI6MTc2NjE3MTM0NiwiZXhwIjoxNzY4NzYzMzQ2fQ.6MawlMPNMdAgIMCQmZpzsOyl839HzHPQtbtkNevChbk
 # THAY THẾ {{token}} bằng Token JWT hợp lệ sau khi đăng nhập thành công (POST /api/auth/login)
 
 ### --- TEST 1: LẤY DANH SÁCH TẤT CẢ TÀI KHOẢN (GET) ---
@@ -41,7 +41,7 @@ Authorization: Bearer {{token}}
 ### --- TEST 4: LẤY CHI TIẾT TÀI KHOẢN VỪA TẠO (GET by ID) ---
 # Endpoint: GET /api/users/:id
 # LƯU Ý: Phải copy ID Tài khoản vừa tạo ở bước 2 hoặc 3 vào biến @userIdToView
-@userIdToView = 694595225f67a2cd1d85af5a
+@userIdToView = 6945a2fb80173ba8303a7afb
 
 GET {{host}}/api/users/{{userIdToView}}
 Authorization: Bearer {{token}}
