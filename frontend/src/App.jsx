@@ -1,17 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/Auth/LoginPage';
-//import TestForm from './pages/Dashboard/TestForm';   
-//import TestForm from './pages/Fees/AddFeeModal.jsx';
-//import { Button } from './components/common/Button.jsx';
-// import DashboardPage from './pages/Dashboard/DashboardPage'; // Placeholder
-//import FeeManagerPage from './pages/Fees/FeeManagerPage.jsx';
-//import HouseholdPage from './pages/Household/HouseholdPage.jsx';
-import TestEditFeeModal from './pages/Fees/EditFeeModal.jsx';
-import TestDeleteFeeModal from './pages/Fees/DeleteFeeModal.jsx';
-import TestForm from './pages/Fees/AddFeeModal.jsx';
 import Dashboard from './pages/Dashboard/DashboardPage.jsx';
-import HouseholdPage from './pages/Household/HouseholdPage.jsx';
 const DashboardLayout = ({ children }) => {
     // Đây sẽ là nơi bạn đặt Sidebar, Header, Footer...
     // Tạm thời dùng div đơn giản để tránh import component MainLayout
@@ -48,13 +38,6 @@ function App() {
                                     <Routes>
                                         {/* ROUTE GỐC /: Trang chủ/Dashboard */}
                                         <Route path="/" element={<Dashboard />} />
-                                        {/* TO BE ADDED: Xin chào: Name, Vai trò: Role */}
-                                        {/* ROUTE QUẢN LÝ KHOẢN THU */}
-                                        {/*<Route path="/fees" element={<FeeManagerPage />} /*}
-                                        
-
-                                        
-
                                         {/* Bạn có thể thêm nhiều route con khác tại đây */}
                                         {/* <Route path="/sessions" element={<PaymentSessionPage />} /> */}
                                     </Routes>
