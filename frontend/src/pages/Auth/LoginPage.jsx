@@ -39,37 +39,37 @@ const LoginPage = () => {
                     {/* DESCRIPTION */}
                     <p className="text-gray-500 text-sm">Đăng nhập để truy cập các chức năng</p>
                 </div>
-                <form onSubmit={handleSubmit} class="bg-white shadow-md rounded-2xl px-8 pt-6 pb-8 py-6">
-                    <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="username">
-                        Tên đăng nhập
-                    </label>
-                    <input class="shadow appearance-none border rounded-xl w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
-                        id="username" 
-                        type="text" 
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        placeholder="Nhập tên đăng nhập"/>
+                <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-2xl px-8 pt-6 pb-8 py-6">
+                    <div className="mb-4">
+                        <label className="block text-gray-700 text-sm font-bold mb-2" for="username">
+                            Tên đăng nhập
+                        </label>
+                        <input className="shadow appearance-none border rounded-xl w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            id="username"
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            placeholder="Nhập tên đăng nhập" />
                     </div>
-                    <div class="mb-6">
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="password">
-                        Mật khẩu
-                    </label>
-                    <input class="shadow appearance-none border rounded-xl w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" 
-                        id="password" 
-                        type="password" 
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Nhập mật khẩu"/>
-                    {error && <div className="p-2 mb-4 text-red-500 bg-red-100 rounded-2xl">{error}</div>}
+                    <div className="mb-6">
+                        <label className="block text-gray-700 text-sm font-bold mb-2" for="password">
+                            Mật khẩu
+                        </label>
+                        <input className="shadow appearance-none border rounded-xl w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
+                            id="password"
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Nhập mật khẩu" />
+                        {error && <div className="p-2 mb-4 text-red-500 bg-red-100 rounded-2xl">{error}</div>}
                     </div>
-                    <div class="flex items-center justify-between">
-                    <a class="inline-block align-baseline font-bold text-sm text-cyan-600 hover:text-blue-800" href="#">
-                        Quên mật khẩu?
-                    </a>
-                    <Button className="bg-linear-to-r from-blue-500 to-cyan-500">
-                        Đăng nhập
-                    </Button>
+                    <div className="flex items-center justify-between">
+                        <a className="inline-block align-baseline font-bold text-sm text-cyan-600 hover:text-blue-800" href="#">
+                            Quên mật khẩu?
+                        </a>
+                        <Button className="bg-linear-to-r from-blue-500 to-cyan-500">
+                            Đăng nhập
+                        </Button>
                     </div>
                 </form>
             </div>
