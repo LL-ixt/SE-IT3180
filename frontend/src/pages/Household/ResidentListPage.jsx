@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Search, Filter, User} from 'lucide-react';
-import ContentWrapper from '../../components/layout/ContentWrapper';
+import { Plus, Edit, Trash2, Search, Filter, User } from 'lucide-react';
+//import ContentWrapper from '../../components/layout/ContentWrapper';
 import Modal from '../../components/common/Modal';
-import { Button } from '../../components/common/Button'; 
+import { Button } from '../../components/common/Button';
 import SearchBar from '../../components/common/SearchBar';
 import Table from '../../components/common/Table';
 
@@ -28,14 +28,14 @@ const ResidentListPage = () => {
     );
 
     const tableHeaders = [
-        { label: 'Họ và tên', className: 'text-left'},
-        { label: 'CMND/CCCD', className: 'text-left'},
-        { label: 'Ngày sinh', className: 'text-left'},
-        { label: 'Giới tính', className: 'text-left'},
-        { label: 'Số ĐT', className: 'text-left'},
-        { label: 'Căn hộ', className: 'text-left'},
-        { label: 'Quan hệ', className: 'text-left'},
-        { label: 'Thao tác', className: 'text-left'}
+        { label: 'Họ và tên', className: 'text-left' },
+        { label: 'CMND/CCCD', className: 'text-left' },
+        { label: 'Ngày sinh', className: 'text-left' },
+        { label: 'Giới tính', className: 'text-left' },
+        { label: 'Số ĐT', className: 'text-left' },
+        { label: 'Căn hộ', className: 'text-left' },
+        { label: 'Quan hệ', className: 'text-left' },
+        { label: 'Thao tác', className: 'text-left' }
     ];
 
     const renderResidentRow = (resident) => (
@@ -51,9 +51,8 @@ const ResidentListPage = () => {
                 </span>
             </td>
             <td className="py-4 px-6">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    resident.relationship === 'Chủ hộ' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
-                }`}>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${resident.relationship === 'Chủ hộ' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                    }`}>
                     {resident.relationship}
                 </span>
             </td>
@@ -123,18 +122,18 @@ const ResidentListPage = () => {
                     </div>
                 </div>
                 <div className="flex-1 max-w-md">
-                    <SearchBar 
-                        searchTerm={searchTerm} 
-                        setSearchTerm={setSearchTerm} 
+                    <SearchBar
+                        searchTerm={searchTerm}
+                        setSearchTerm={setSearchTerm}
                         placeholder="Tìm kiếm theo tên, CMND hoặc căn hộ..."
                     />
                 </div>
             </div>
             <div>
-                <Table 
-                    headers={tableHeaders} 
-                    data={filteredResidents} 
-                    renderRow={renderResidentRow} 
+                <Table
+                    headers={tableHeaders}
+                    data={filteredResidents}
+                    renderRow={renderResidentRow}
                     footerText={
                         <>
                             Kết quả gồm: <span className="font-bold text-gray-700">{filteredResidents.length}</span> cư dân
