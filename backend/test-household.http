@@ -35,3 +35,11 @@ Authorization: Bearer {{token}}
     "area": 90.0,
     "ownerName": "Trần Văn Chủ"
 }
+### 
+@householdId = 694d6bd0cf107afa908b6268
+
+DELETE {{host}}/api/households/{{householdId}}
+Authorization: Bearer {{token}}
+
+GET {{host}}/api/households
+Authorization: Bearer {{token}}

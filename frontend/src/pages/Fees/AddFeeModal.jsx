@@ -1,146 +1,92 @@
-import React, { useState } from 'react';
-import Modal from '../../components/common/Modal.jsx';
-import { Circle, CircleCheck } from 'lucide-react'; // Các icon mẫu
-import {Button} from '../../components/common/Button.jsx';
-const AddFeeModal = ({ isOpen, onClose, onSubmit }) => {
+import React, { useState, useEffect } from 'react';
+import Modal from '../../components/common/Modal';
+import { Button } from '../../components/common/Button';
+
+const AddFeeModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
     const [formData, setFormData] = useState({
         name: '',
-        type: 'mandatory', // 'mandatory' hoặc 'voluntary'
         unitPrice: '',
-        unit: '', // 'm2', 'person', 'household', 'fixed'
+        unit: '',
+        type: 'Bắt buộc',
         description: ''
     });
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData({ ...formData, [name]: value });
-    };
+    // Cập nhật form khi initialData thay đổi (dùng cho trường hợp Edit)
+    useEffect(() => {
+        if (initialData) {
+            setFormData(initialData);
+        } else {
+            setFormData({ name: '', unitPrice: '', unit: '', type: 'Bắt buộc', description: '' });
+        }
+    }, [initialData, isOpen]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSubmit(formData);
+        // Chuyển đổi unitPrice sang số trước khi gửi đi
+        onSubmit({ ...formData, unitPrice: Number(formData.unitPrice) });
         onClose();
     };
 
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
-            <div className="px-1 py-5 border-b border-gray-100 space-y-3">
-                <h2 className="text-2xl font-bold text-gray-800">Thêm khoản thu</h2>
-            </div>
-            <div className="p-1">
-                <form onSubmit={handleSubmit} className="space-y-5">
-                    {/* Tên khoản thu */}
-                    <div className="space-y-2">
-                        <label className="block text-lg font-semibold text-gray-700">Tên khoản thu</label>
-                        <input
-                            className="w-full px-4 py-2 border-2 border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                            name="name"
-                            placeholder="Nhập tên khoản thu..."
-                            value={formData.name}
-                            onChange={handleChange}
-                            required
+            <div className="p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">
+                    {initialData ? 'Chỉnh sửa khoản thu' : 'Thêm khoản thu mới'}
+                </h3>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Tên khoản thu</label>
+                        <input 
+                            value={formData.name} 
+                            onChange={e => setFormData({ ...formData, name: e.target.value })} 
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                            required 
                         />
                     </div>
-
-                    {/* Loại khoản thu (Radio custom) */}
-                    <div className="space-y-2">
-                        <label className="block text-lg font-semibold text-gray-700">Loại khoản thu</label>
-                            <div className="grid grid-cols-2 gap-10 pt-1">
-                                {/* Option: Bắt buộc */}
-                                <label className="flex items-center gap-2 cursor-pointer group">
-                                    <input 
-                                        type="radio" name="type" value="mandatory" 
-                                        checked={formData.type === 'mandatory'} 
-                                        onChange={handleChange}
-                                        className="hidden"
-                                    />
-                                    {/* Nếu chọn mandatory thì hiện Circle màu đen (gray-900), ngược lại màu xám */}
-                                    {formData.type === 'mandatory' ? (
-                                        <CircleCheck className="size-6 text-yellow-500 transition-colors" />
-                                    ) : (
-                                        <Circle className="size-6 text-gray-400 transition-colors" />
-                                    )}
-                                    <span className={`text-lg transition-all ${
-                                        formData.type === 'mandatory' ? ' text-black' : 'text-gray-500'
-                                    }`}>
-                                        Bắt buộc
-                                    </span>
-                                </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer group">
-                                <input 
-                                    type="radio" name="type" value="voluntary" 
-                                    checked={formData.type === 'voluntary'} 
-                                    onChange={handleChange}
-                                    className="hidden"
-                                />
-                                {/* Logic Icon: Nếu là voluntary hiện CheckCircle2 xanh, ngược lại hiện Circle xám */}
-                                {formData.type === 'voluntary' ? (
-                                    <CircleCheck className="size-6 text-green-500 transition-colors" />
-                                ) : (
-                                    <Circle className="size-6 text-gray-400 transition-colors" />
-                                )}
-                                <span className={`text-lg transition-all ${
-                                    formData.type === 'voluntary' ? ' text-black' : 'text-gray-500'
-                                }`}>
-                                    Tự nguyện
-                                </span>
-                            </label>
-                        </div>
-                    </div>
-
-                    {/* Hàng ngang: Đơn giá và Đơn vị */}
-                    <div className="grid grid-cols-2 gap-10">
-                        <div className="space-y-2">
-                            <label className="block text-lg font-semibold text-gray-700">Đơn giá <span className="text-xs text-gray-400 font-normal">(VND)</span></label>
-                            <input
-                                className="w-full px-4 py-2 border-2 border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none"
-                                name="unitPrice"
-                                placeholder="VD: 5000"
-                                value={formData.unitPrice}
-                                onChange={handleChange}
-                                required
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Đơn giá (VND)</label>
+                            <input 
+                                type="number" 
+                                value={formData.unitPrice} 
+                                onChange={e => setFormData({ ...formData, unitPrice: e.target.value })} 
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                required 
                             />
                         </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-lg font-semibold text-gray-700">Đơn vị</label>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Đơn vị tính</label>
                             <input 
                                 value={formData.unit} 
-                                onChange={handleChange}
-                                placeholder="VD: kWh"
-                                className="w-full px-4 py-2 border-2 border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                                onChange={e => setFormData({ ...formData, unit: e.target.value })} 
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                required 
+                                placeholder="VD: m2, hộ" 
                             />
                         </div>
                     </div>
-
-                    {/* Mô tả */}
-                    <div className="space-y-2">
-                        <label className="block text-lg font-semibold text-gray-700">Mô tả</label>
-                        <textarea
-                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none h-24 resize-none"
-                            name="description"
-                            placeholder="Nhập mô tả"
-                            value={formData.description}
-                            onChange={handleChange}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Loại phí</label>
+                        <select 
+                            value={formData.type} 
+                            onChange={e => setFormData({ ...formData, type: e.target.value })} 
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="Bắt buộc">Bắt buộc</option>
+                            <option value="Tự nguyện">Tự nguyện</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
+                        <textarea 
+                            value={formData.description} 
+                            onChange={e => setFormData({ ...formData, description: e.target.value })} 
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg h-20 focus:outline-none focus:ring-2 focus:ring-blue-500" 
                         />
                     </div>
-
-                    {/* Footer Buttons */}
-                    <div className="flex gap-10 pt-4 border-t border-gray-100">
-                        <Button
-                            type="button"
-                            onClick={onClose}
-                            className="flex-auto bg-gray-300 text-gray-600 font-bold hover:bg-gray-200 transition-colors"
-                        >
-                            Hủy
-                        </Button>
-                        <Button
-                            type="submit"
-                            className="flex-auto bg-linear-to-r from-green-500 to-green-300 text-black font-bold transition-colors"
-                        >
-                            Thêm
-                        </Button>
+                    <div className="flex gap-4 pt-6 mt-6 border-t border-gray-100">
+                        <Button type="button" onClick={onClose} className="flex-1 bg-gray-400">Hủy</Button>
+                        <Button type="submit" className="flex-1 bg-linear-to-r from-blue-500 to-cyan-500 font-bold shadow-lg shadow-blue-200 transition-all">Lưu</Button>
                     </div>
                 </form>
             </div>
@@ -148,29 +94,4 @@ const AddFeeModal = ({ isOpen, onClose, onSubmit }) => {
     );
 };
 
-const TestForm = () => {
-    const [isModalOpen, setModalOpen] = useState(false);
-
-    const handleSubmit = (data) => {
-        alert(`Submitted: ${JSON.stringify(data)}`);
-    };
-
-    return (
-        <div className="h-screen flex
-                        items-start justify-center">
-            <Button
-                className="bg-linear-to-r from-blue-500 to-cyan-500"
-                onClick={() => setModalOpen(true)}
-            >
-                Thêm khoản phí
-            </Button>
-            <AddFeeModal
-                isOpen={isModalOpen}
-                onClose={() => setModalOpen(false)}
-                onSubmit={handleSubmit}
-            />
-        </div>
-    );
-};
-
-export default TestForm;
+export default AddFeeModal;

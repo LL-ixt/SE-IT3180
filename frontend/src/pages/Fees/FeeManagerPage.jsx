@@ -4,7 +4,7 @@ import Modal from '../../components/common/Modal';
 import Table from '../../components/common/Table';
 import { Button } from '../../components/common/Button';
 import SearchBar from '../../components/common/SearchBar';
-
+import AddFeeModal from './AddFeeModal';
 // Dữ liệu mẫu chỉ còn Bắt buộc/Tự nguyện
 const initialFees = [
     { id: 1, name: 'Phí quản lý chung cư', unitPrice: 7000, unit: 'm²', type: 'Bắt buộc', description: 'Thu theo diện tích căn hộ' },
@@ -18,7 +18,7 @@ const FeeManagerPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingFee, setEditingFee] = useState(null);
-    const [formData, setFormData] = useState({ name: '', unitPrice: '', unit: '', type: 'Bắt buộc', description: '' });
+    //const [formData, setFormData] = useState({ name: '', unitPrice: '', unit: '', type: 'Bắt buộc', description: '' });
 
     const headers = [
         { label: 'Tên khoản thu', className: 'text-left' },
@@ -56,16 +56,15 @@ const FeeManagerPage = () => {
 
     const handleOpenModal = (fee = null) => {
         setEditingFee(fee);
-        setFormData(fee || { name: '', unitPrice: '', unit: '', type: 'Bắt buộc', description: '' });
+        //setFormData(fee || { name: '', unitPrice: '', unit: '', type: 'Bắt buộc', description: '' });
         setIsModalOpen(true);
     };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
+    const handleSubmit = (data) => {
         if (editingFee) {
-            setFees(fees.map(f => f.id === editingFee.id ? { ...formData, id: editingFee.id } : f));
+            setFees(fees.map(f => f.id === editingFee.id ? { ...data, id: editingFee.id } : f));
         } else {
-            setFees([...fees, { ...formData, id: Date.now() }]);
+            setFees([...fees, { ...data, id: Date.now() }]);
         }
         setIsModalOpen(false);
     };
@@ -87,7 +86,7 @@ const FeeManagerPage = () => {
                     onClick={() => handleOpenModal()}
                     className="bg-linear-to-r from-blue-500 to-cyan-500"
                 >
-                    <Plus className="w-5 h-5 mr-1" /> Thêm khoản thu
+                    Thêm khoản thu
                 </Button>
             </div>
 
@@ -117,7 +116,7 @@ const FeeManagerPage = () => {
                 footerText={<>Tổng số: <span className="font-bold text-gray-700">{filteredFees.length}</span> loại phí</>}
             />
 
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+            {/* <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
                 <div className="p-6">
                     <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">
                         {editingFee ? 'Chỉnh sửa khoản thu' : 'Thêm khoản thu mới'}
@@ -154,7 +153,14 @@ const FeeManagerPage = () => {
                         </div>
                     </form>
                 </div>
-            </Modal>
+            </Modal> */}
+
+            <AddFeeModal 
+                isOpen={isModalOpen} 
+                onClose={() => setIsModalOpen(false)} 
+                onSubmit={handleSubmit}
+                initialData={editingFee}
+            />
         </div>
     );
 };

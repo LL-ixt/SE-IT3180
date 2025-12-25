@@ -9,7 +9,9 @@ const householdSchema = mongoose.Schema({
     members: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Resident'
-    }]
+    }],
+    motorbikeNumber: { type: Number, default: 0 }, // Số xe máy
+    carNumber: { type: Number, default: 0 } // Số ô tô
 }, { timestamps: true });
 
 module.exports = mongoose.model('Household', householdSchema);
