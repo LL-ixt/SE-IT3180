@@ -53,9 +53,9 @@ const createUser = async (req, res) => {
     }
 
     // Validate role
-    if (!['admin', 'manager'].includes(role)) {
+    if (!['admin', 'manager', 'accountant'].includes(role)) {
         return res.status(400).json({
-            message: 'Invalid role. Must be either "admin" or "manager"'
+            message: 'Invalid role. Must be either "admin", "manager", or "accountant"'
         });
     }
 
@@ -116,9 +116,9 @@ const updateUser = async (req, res) => {
         if (fullName) user.fullName = fullName;
         if (role) {
             // Validate role
-            if (!['admin', 'manager'].includes(role)) {
+            if (!['admin', 'manager', 'accountant'].includes(role)) {
                 return res.status(400).json({
-                    message: 'Invalid role. Must be either "admin" or "manager"'
+                    message: 'Invalid role. Must be either "admin", "manager", or "accountant"'
                 });
             }
             user.role = role;

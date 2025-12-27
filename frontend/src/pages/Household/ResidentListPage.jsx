@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Plus, Edit, Trash2, User } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
@@ -7,8 +6,8 @@ import SearchBar from '../../components/common/SearchBar';
 import Table from '../../components/common/Table';
 import { useAuth } from '../../context/AuthContext';
 import DatePicker from "react-datepicker";
-
-const API_URL = 'http://localhost:5000/api/residents';
+import residentsApi from '../../api/residentsApi';
+import householdApi from '../../api/householdApi';
 
 // const initialResidents = [
 //     { id: 1, name: 'Nguyễn Văn A', idCard: '001234567890', birthDate: '15/05/1980', gender: 'Nam', phone: '0901234567', apartment: 'A101', relationship: 'Chủ hộ', moveInDate: '01/01/2020' },
@@ -19,7 +18,6 @@ const API_URL = 'http://localhost:5000/api/residents';
 
 const ResidentListPage = () => {
     const { user } = useAuth();
-    const config = { headers: { Authorization: `Bearer ${user.token}` } };
     const [residents, setResidents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -44,18 +42,11 @@ const ResidentListPage = () => {
     });
 
     const fetchData = async () => {
-        if (!user?.token) return; 
-
-        // Định nghĩa config ngay tại đây để đảm bảo token luôn mới nhất
-        const currentConfig = { 
-            headers: { Authorization: `Bearer ${user.token}` } 
-        };
-
         try {
             setLoading(true);
             const [resResidents, resHouseholds] = await Promise.all([
-                axios.get(API_URL, currentConfig),
-                axios.get('http://localhost:5000/api/households', currentConfig)
+                residentsApi.getAll(),
+                householdApi.getAll()
             ]);
 
             // Kiểm tra dữ liệu trả về có phải mảng không trước khi set
@@ -75,7 +66,7 @@ const ResidentListPage = () => {
     // 2. useEffect gọi dữ liệu
     useEffect(() => {
         fetchData();
-    }, [user?.token]);
+    }, []);
 
 
     const filteredResidents = residents?.filter(resident =>
@@ -157,9 +148,9 @@ const ResidentListPage = () => {
         e.preventDefault();
         try {
             if (editingResident) {
-                await axios.put(`${API_URL}/${editingResident._id}`, formData, config);
+                await residentsApi.update(editingResident._id, formData);
             } else {
-                await axios.post(API_URL, formData, config);
+                await residentsApi.create(formData);
             }
             
             // Quan trọng: Đợi lấy dữ liệu mới xong rồi mới đóng Modal
@@ -176,7 +167,7 @@ const ResidentListPage = () => {
     const handleDelete = async (id) => {
         if (window.confirm('Bạn có chắc chắn muốn xóa nhân khẩu này?')) {
             try {
-                await axios.delete(`${API_URL}/${id}`, config);
+                await residentsApi.remove(id);
                 fetchData();
             } catch (error) {
                 alert("Xóa thất bại ");

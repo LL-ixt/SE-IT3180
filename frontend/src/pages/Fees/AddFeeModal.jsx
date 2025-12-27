@@ -14,7 +14,15 @@ const AddFeeModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
     // Cập nhật form khi initialData thay đổi (dùng cho trường hợp Edit)
     useEffect(() => {
         if (initialData) {
-            setFormData(initialData);
+            // Map backend enum values to Vietnamese labels
+            const typeMap = {
+                'mandatory': 'Bắt buộc',
+                'voluntary': 'Tự nguyện'
+            };
+            setFormData({
+                ...initialData,
+                type: typeMap[initialData.type] || initialData.type
+            });
         } else {
             setFormData({ name: '', unitPrice: '', unit: '', type: 'Bắt buộc', description: '' });
         }
@@ -22,8 +30,17 @@ const AddFeeModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Chuyển đổi unitPrice sang số trước khi gửi đi
-        onSubmit({ ...formData, unitPrice: Number(formData.unitPrice) });
+        // Map Vietnamese type labels to backend enum values
+        const typeMap = {
+            'Bắt buộc': 'mandatory',
+            'Tự nguyện': 'voluntary'
+        };
+        const payload = {
+            ...formData,
+            type: typeMap[formData.type] || formData.type,
+            unitPrice: Number(formData.unitPrice)
+        };
+        onSubmit(payload);
         onClose();
     };
 
@@ -55,14 +72,19 @@ const AddFeeModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Đơn vị tính</label>
-                            <input 
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Tính theo</label>
+                            <select 
                                 value={formData.unit} 
                                 onChange={e => setFormData({ ...formData, unit: e.target.value })} 
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                required 
-                                placeholder="VD: m2, hộ" 
-                            />
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            >
+                                <option value="">-- Chọn cách tính --</option>
+                                <option value="area">Diện tích căn hộ (m²)</option>
+                                <option value="person">Số người</option>
+                                <option value="household">Hộ gia đình</option>
+                                <option value="fixed">Cố định</option>
+                            </select>
                         </div>
                     </div>
                     <div>

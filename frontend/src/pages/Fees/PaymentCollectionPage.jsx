@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Eye, FileSpreadsheet, CheckCircle, ArrowRight, DollarSign, Calendar, CalendarIcon } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import Table from '../../components/common/Table';
@@ -6,6 +6,8 @@ import { Button } from '../../components/common/Button';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import AddFeeModal from './AddFeeModal';
+import paymentSessionApi from '../../api/paymentSessionApi';
+import feeApi from '../../api/feeApi';
 const existingFeeTypes = [
     { id: 1, name: 'Phí quản lý chung cư', price: 7000 },
     { id: 2, name: 'Phí vệ sinh', price: 30000 },
@@ -20,9 +22,8 @@ const apartments = [
 
 const PaymentCollectionPage = () => {
     // State quản lý danh sách đợt thu
-    const [sessions, setSessions] = useState([
-        { id: 1, name: 'Thu phí Tháng 12/2025', status: 'Đang thu', fees: existingFeeTypes, totalCollected: 1500000 }
-    ]);
+    const [sessions, setSessions] = useState([]);
+    const [loading, setLoading] = useState(true);
     
     // View state: LIST | DETAIL | INPUT_MONEY
     const [view, setView] = useState('LIST');
@@ -49,46 +50,88 @@ const PaymentCollectionPage = () => {
         description: ''
     });
 
-    const handleCreateSession = (e) => {
-        e.preventDefault();
-        const newSession = { 
-            id: Date.now(), 
-            name: sessionFormData.title, 
-            status: 'Mới tạo', 
-            fees: [], 
-            totalCollected: 0 
-        };
-        setSessions([newSession, ...sessions]);
-        setCurrentSession(newSession);
-        setCreateModalOpen(false);
-        setView('DETAIL');
-        setSessionFormData({ title: '', startDate: new Date(), endDate: new Date(), description: '' });
+    useEffect(() => {
+        fetchSessions();
+    }, []);
+
+    const fetchSessions = async () => {
+        try {
+            setLoading(true);
+            const response = await paymentSessionApi.getAll();
+            setSessions(Array.isArray(response.data) ? response.data : []);
+        } catch (error) {
+            console.error('Lỗi tải danh sách đợt thu:', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleAddNewFeeType = (data) => {
-        const newFee = {
-            id: Date.now(),
-            name: data.name,
-            price: data.unitPrice, // Chú ý: AddFeeModal dùng unitPrice, trang này dùng price
-            unit: data.unit,
-            type: data.type
-        };
-        
-        // Thêm vào session hiện tại
-        const updatedSession = { ...currentSession, fees: [...currentSession.fees, newFee] };
-        setCurrentSession(updatedSession);
-        setSessions(sessions.map(s => s.id === updatedSession.id ? updatedSession : s));
-        
-        // Đóng modal
-        setIsNewFeeModalOpen(false);
+    const handleCreateSession = async (e) => {
+        e.preventDefault();
+        try {
+            const payload = {
+                title: sessionFormData.title,
+                description: sessionFormData.description,
+                startDate: sessionFormData.startDate,
+                endDate: sessionFormData.endDate,
+                fees: [],
+                isActive: true
+            };
+            const response = await paymentSessionApi.create(payload);
+            setSessions([response.data, ...sessions]);
+            setCurrentSession(response.data);
+            setCreateModalOpen(false);
+            setView('DETAIL');
+            setSessionFormData({ title: '', startDate: new Date(), endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)), description: '' });
+        } catch (error) {
+            console.error('Lỗi tạo đợt thu:', error);
+            alert('Tạo đợt thu thất bại');
+        }
+    };
+
+    const handleAddNewFeeType = async (data) => {
+        try {
+            // Create fee first using feeApi
+            const feePayload = {
+                name: data.name,
+                description: data.description,
+                type: data.type,
+                unit: data.unit,
+                unitPrice: data.unitPrice
+            };
+            const feeResponse = await feeApi.create(feePayload);
+            
+            // Add fee to session
+            const updatedSession = { 
+                ...currentSession, 
+                fees: [...(currentSession.fees || []), { fee: feeResponse.data._id, unitPrice: data.unitPrice }] 
+            };
+            const sessionResponse = await paymentSessionApi.update(currentSession._id || currentSession.id, updatedSession);
+            setCurrentSession(sessionResponse.data);
+            setSessions(sessions.map(s => (s._id || s.id) === (currentSession._id || currentSession.id) ? sessionResponse.data : s));
+            
+            setIsNewFeeModalOpen(false);
+        } catch (error) {
+            console.error('Lỗi thêm khoản thu:', error);
+            alert('Thêm khoản thu thất bại');
+        }
     };
     
-    const handleAddFeeToSession = (fee) => {
-        const updatedSession = { ...currentSession, fees: [...currentSession.fees, fee] };
-        setCurrentSession(updatedSession);
-        setSessions(sessions.map(s => s.id === updatedSession.id ? updatedSession : s));
-        setIsAddFeeModalOpen(false);
-        setAddFeeStep('CHOICE');
+    const handleAddFeeToSession = async (fee) => {
+        try {
+            const updatedSession = { 
+                ...currentSession, 
+                fees: [...(currentSession.fees || []), { fee: fee._id || fee.id }] 
+            };
+            const response = await paymentSessionApi.update(currentSession._id || currentSession.id, updatedSession);
+            setCurrentSession(response.data);
+            setSessions(sessions.map(s => (s._id || s.id) === (currentSession._id || currentSession.id) ? response.data : s));
+            setIsAddFeeModalOpen(false);
+            setAddFeeStep('CHOICE');
+        } catch (error) {
+            console.error('Lỗi thêm khoản thu vào đợt:', error);
+            alert('Thêm khoản thu thất bại');
+        }
     };
 
     const handleSaveMoney = () => {
@@ -124,15 +167,17 @@ const PaymentCollectionPage = () => {
             </div>
 
             <Table
-                headers={[{ label: 'Tên đợt thu' }, { label: 'Trạng thái' }, { label: 'Tổng thu' }, { label: 'Hành động', className: 'text-right' }]}
+                headers={[{ label: 'Tên đợt thu' }, { label: 'Trạng thái' }, { label: 'Ngày bắt đầu' }, { label: 'Hành động', className: 'text-right' }]}
                 data={sessions}
                 renderRow={(s) => (
-                    <tr key={s.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="py-4 px-6 font-bold text-blue-600">{s.name}</td>
+                    <tr key={s._id || s.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="py-4 px-6 font-bold text-blue-600">{s.title || s.name}</td>
                         <td className="py-4 px-6">
-                            <span className="bg-blue-50 text-blue-600 border border-blue-100 px-3 py-1 rounded-full text-xs font-bold">{s.status}</span>
+                            <span className={`${s.isActive ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-600 border-red-100'} border px-3 py-1 rounded-full text-xs font-bold`}>
+                                {s.isActive ? 'Đang hoạt động' : 'Đã kết thúc'}
+                            </span>
                         </td>
-                        <td className="py-4 px-6 font-mono font-bold text-gray-700">{s.totalCollected.toLocaleString()} đ</td>
+                        <td className="py-4 px-6">{new Date(s.startDate).toLocaleDateString('vi-VN')}</td>
                         <td className="py-4 px-6 text-right">
                             <button onClick={() => { setCurrentSession(s); setView('DETAIL'); }} className="text-blue-500 hover:text-blue-700 font-bold text-sm transition-colors flex items-center justify-end ml-auto">
                                 <Eye size={16} className="mr-1" /> Chi tiết
@@ -152,7 +197,8 @@ const PaymentCollectionPage = () => {
                     <button onClick={() => setView('LIST')} className="text-gray-400 text-sm hover:text-blue-600 mb-2 transition-colors flex items-center">
                         ← Quay lại danh sách
                     </button>
-                    <h2 className="text-2xl font-black text-gray-900">{currentSession.name}</h2>
+                    <h2 className="text-2xl font-black text-gray-900">{currentSession.title || currentSession.name}</h2>
+                    <p className="text-gray-500 text-sm mt-1">{currentSession.description}</p>
                 </div>
                 <div className="flex gap-3">
                     <Button onClick={() => alert('Đang xuất...')} className="bg-emerald-500">
@@ -172,7 +218,7 @@ const PaymentCollectionPage = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {currentSession.fees.map((fee, idx) => (
+                {(currentSession.fees || []).map((fee, idx) => (
                     <div key={idx} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center hover:border-blue-200 transition-all">
                         <div>
                             <p className="font-bold text-gray-800">{fee.name}</p>
@@ -252,9 +298,17 @@ const PaymentCollectionPage = () => {
 
     return (
         <div className="relative min-h-screen">
-            {view === 'LIST' && renderSessionList()}
-            {view === 'DETAIL' && renderSessionDetail()}
-            {view === 'INPUT_MONEY' && renderInputMoney()}
+            {loading && (
+                <div className="flex items-center justify-center h-screen">
+                    <div className="text-center">
+                        <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+                        <p className="text-gray-600">Đang tải dữ liệu...</p>
+                    </div>
+                </div>
+            )}
+            {!loading && view === 'LIST' && renderSessionList()}
+            {!loading && view === 'DETAIL' && renderSessionDetail()}
+            {!loading && view === 'INPUT_MONEY' && renderInputMoney()}
 
             {/* Modal Tạo đợt thu mới */}
             <Modal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)}>

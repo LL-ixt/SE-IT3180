@@ -1,43 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Receipt } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import Table from '../../components/common/Table';
 import { Button } from '../../components/common/Button';
 import SearchBar from '../../components/common/SearchBar';
 import AddFeeModal from './AddFeeModal';
-// Dữ liệu mẫu chỉ còn Bắt buộc/Tự nguyện
-const initialFees = [
-    { id: 1, name: 'Phí quản lý chung cư', unitPrice: 7000, unit: 'm²', type: 'Bắt buộc', description: 'Thu theo diện tích căn hộ' },
-    { id: 2, name: 'Phí gửi xe máy', unitPrice: 80000, unit: 'xe/tháng', type: 'Tự nguyện', description: 'Cho cư dân có đăng ký xe' },
-    { id: 3, name: 'Phí vệ sinh', unitPrice: 30000, unit: 'hộ/tháng', type: 'Bắt buộc', description: 'Thu theo hộ gia đình' },
-    { id: 4, name: 'Phí gửi ô tô', unitPrice: 1200000, unit: 'xe/tháng', type: 'Tự nguyện', description: 'Cho cư dân có đăng ký xe' },
-];
+import feeApi from '../../api/feeApi';
 
 const FeeManagerPage = () => {
-    const [fees, setFees] = useState(initialFees);
+    const [fees, setFees] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingFee, setEditingFee] = useState(null);
-    //const [formData, setFormData] = useState({ name: '', unitPrice: '', unit: '', type: 'Bắt buộc', description: '' });
+
+    useEffect(() => {
+        fetchFees();
+    }, []);
+
+    const fetchFees = async () => {
+        try {
+            setLoading(true);
+            const response = await feeApi.getAll();
+            setFees(response.data);
+        } catch (error) {
+            console.error('Lỗi tải dữ liệu:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const headers = [
         { label: 'Tên khoản thu', className: 'text-left' },
         { label: 'Đơn giá (VND)', className: 'text-left' },
-        { label: 'Đơn vị', className: 'text-left' },
+        { label: 'Tính theo', className: 'text-left' },
         { label: 'Loại', className: 'text-left' },
         { label: 'Mô tả', className: 'text-left' },
         { label: 'Thao tác', className: 'text-left' },
     ];
 
     const renderRow = (item, index) => (
-        <tr key={index} className="hover:bg-gray-50 transition-colors">
+        <tr key={item._id} className="hover:bg-gray-50 transition-colors">
             <td className="py-4 px-6 font-medium text-gray-900">{item.name}</td>
             <td className="py-4 px-6 text-blue-600 font-bold">{new Intl.NumberFormat('vi-VN').format(item.unitPrice)} đ</td>
-            <td className="py-4 px-6 text-gray-600">{item.unit}</td>
+            <td className="py-4 px-6 text-gray-600">{getUnitLabel(item.unit)}</td>
             <td className="py-4 px-6">
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${item.type === 'Bắt buộc' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${item.type === 'mandatory' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
                     }`}>
-                    {item.type}
+                    {item.type === 'mandatory' ? 'Bắt buộc' : 'Tự nguyện'}
                 </span>
             </td>
             <td className="py-4 px-6 text-gray-500 italic truncate max-w-xs">{item.description}</td>
@@ -46,7 +56,7 @@ const FeeManagerPage = () => {
                     <button onClick={() => handleOpenModal(item)} className="flex items-center justify-center w-7 h-7 rounded-md text-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
                         <Edit size={18} />
                     </button>
-                    <button onClick={() => handleDelete(item.id)} className="flex items-center justify-center w-7 h-7 rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                    <button onClick={() => handleDelete(item._id)} className="flex items-center justify-center w-7 h-7 rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
                         <Trash2 size={18} />
                     </button>
                 </div>
@@ -56,24 +66,44 @@ const FeeManagerPage = () => {
 
     const handleOpenModal = (fee = null) => {
         setEditingFee(fee);
-        //setFormData(fee || { name: '', unitPrice: '', unit: '', type: 'Bắt buộc', description: '' });
         setIsModalOpen(true);
     };
 
-    const handleSubmit = (data) => {
-        if (editingFee) {
-            setFees(fees.map(f => f.id === editingFee.id ? { ...data, id: editingFee.id } : f));
-        } else {
-            setFees([...fees, { ...data, id: Date.now() }]);
+    const handleSubmit = async (data) => {
+        try {
+            if (editingFee) {
+                await feeApi.update(editingFee._id, data);
+            } else {
+                await feeApi.create(data);
+            }
+            fetchFees();
+            setIsModalOpen(false);
+        } catch (error) {
+            alert('Lỗi: ' + (error.response?.data?.message || error.message));
         }
-        setIsModalOpen(false);
     };
 
     const handleDelete = (id) => {
-        if (window.confirm('Xóa khoản thu này?')) setFees(fees.filter(f => f.id !== id));
+        if (window.confirm('Xóa khoản thu này?')) {
+            feeApi.remove(id)
+                .then(() => fetchFees())
+                .catch(error => alert('Lỗi khi xóa: ' + (error.response?.data?.message || error.message)));
+        }
     };
 
     const filteredFees = fees.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const getUnitLabel = (unit) => {
+        const unitMap = {
+            'area': 'Diện tích căn hộ (m²)',
+            'person': 'Số người',
+            'household': 'Hộ gia đình',
+            'fixed': 'Cố định'
+        };
+        return unitMap[unit] || unit;
+    };
+
+    if (loading) return <div className="p-10 text-center">Đang tải dữ liệu...</div>;
 
     return (
         <div className="space-y-6">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import householdApi from '../../api/householdApi';
 import { Plus, Edit, Trash2, User, Home as HomeIcon } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import { Button } from '../../components/common/Button.jsx';
@@ -29,11 +29,10 @@ const HouseholdPage = () => {
     const fetchHouseholds = async () => {
         try {
             setLoading(true);
-            const config = { headers: { Authorization: `Bearer ${user.token}` } };
-            const response = await axios.get('http://localhost:5000/api/households', config);
+            const response = await householdApi.getAll();
             setHouseholds(response.data);
         } catch (error) {
-            console.error("Lỗi tải dữ liệu:", error);
+            console.error('Lỗi tải dữ liệu:', error);
         } finally {
             setLoading(false);
         }
@@ -107,7 +106,6 @@ const HouseholdPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const config = { headers: { Authorization: `Bearer ${user.token}` } };
         const data = {
             apartmentNumber: formData.apartmentNumber,
             ownerName: formData.ownerName,
@@ -119,9 +117,9 @@ const HouseholdPage = () => {
 
         try {
             if (editingHousehold) {
-                await axios.put(`http://localhost:5000/api/households/${editingHousehold._id}`, data, config);
+                await householdApi.update(editingHousehold._id, data);
             } else {
-                await axios.post('http://localhost:5000/api/households', data, config);
+                await householdApi.create(data);
             }
             fetchHouseholds();
             setIsModalOpen(false);
@@ -132,13 +130,12 @@ const HouseholdPage = () => {
 
     const handleDelete = async (id) => {
         if (window.confirm('Xác nhận xóa hộ khẩu?')) {
-            try {
-                const config = { headers: { Authorization: `Bearer ${user.token}` } };
-                await axios.delete(`http://localhost:5000/api/households/${id}`, config);
-                fetchHouseholds();
-            } catch (error) {
-                alert("Lỗi khi xóa");
-            }
+                try {
+                    await householdApi.remove(id);
+                    fetchHouseholds();
+                } catch (error) {
+                    alert('Lỗi khi xóa');
+                }
         }
     };
 

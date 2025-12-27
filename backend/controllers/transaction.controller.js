@@ -5,6 +5,21 @@ const mongoose = require('mongoose');
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 // --- TRANSACTION (Giao dịch nộp tiền - UC005, UC007) ---
 
+// @desc      Get all transactions
+// @route     GET /api/transactions
+// @access    Private
+const getTransactions = async (req, res) => {
+    try {
+        const transactions = await Transaction.find()
+            .populate('household fee paymentSession')
+            .sort({ date: -1 });
+
+        res.status(200).json(transactions);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching transactions', error: error.message });
+    }
+};
+
 // @desc      Create new transaction (Ghi nhận nộp tiền)
 // @route     POST /api/payments/transactions
 // @access    Private
@@ -85,6 +100,7 @@ const getTransactionsBySession = async (req, res) => {
 };
 
 module.exports = {
+    getTransactions,
     createTransaction,
     editTransaction,
     getTransactionsBySession

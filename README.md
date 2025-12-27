@@ -103,6 +103,25 @@ Xây dựng module Fee/Payment (Quản lý tài chính).
 1. Setup React với Tailwind CSS.
 2. Tạo Layout (Sidebar, Header).
 3. Thực hiện các trang Dashboard và Quản lý theo thứ tự ưu tiên: Dân cư -> Khoản thu -> Thống kê.
+ UPDATE  22/12/2025
+ Đã hoàn thành việc xây dựng giao diện tĩnh và tích hợp logic hiển thị cơ bản cho các module chính của hệ thống quản lý chung cư BlueMoon.
+
+#### 1. Kiến trúc Frontend
+- Sử dụng **React Router** để định tuyến các trang chức năng.
+- Sử dụng **Tailwind CSS** để thiết kế giao diện tùy biến cao.
+- Component hóa các thành phần chung: `Modal`, `Sidebar`, `ContentWrapper`.
+
+#### 2. Các màn hình đã hoàn thiện
+| STT | Tên màn hình | Trạng thái | Ghi chú |
+|-----|----------------------|------------|-------------------------------------------|
+| 1 | Dashboard (Tổng quan)| Hiển thị biểu đồ và thông số tổng quan |
+| 2 | Quản lý Hộ khẩu  | Đầy đủ UI thêm/sửa/xóa, tìm kiếm |
+| 3 | Quản lý Nhân khẩu  | Chi tiết thông tin cư dân |
+| 4 | Quản lý Khoản thu  | Danh sách các loại phí dịch vụ |
+| 5 | Quản lý Đợt thu  | Quản lý thời gian thu phí |
+| 6 | Quản lý Người dùng | Quản lý tài khoản Admin/Mod |
+
+
 ### Giai đoạn 4: Tích hợp & Kiểm thử (Integration & Testing)
 1. Kết nối API Backend vào Frontend.
 2. Test luồng nghiệp vụ: Tạo hộ -> Tạo khoản thu -> Hộ nộp tiền -> Xuất thống kê.
@@ -447,3 +466,7 @@ curl -X POST http://localhost:5000/api/auth/login `
   - Kiểm tra MongoDB URI trong `.env`
   - Kiểm tra IP whitelist trên MongoDB Atlas (nếu dùng cloud)
   - Kiểm tra MongoDB service đang chạy (nếu dùng local)
+ 
+
+
+

@@ -1,62 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, User, Shield, Eye } from 'lucide-react';
 import SearchBar from '../../components/common/SearchBar';
 import Table from '../../components/common/Table';
 import {Button} from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
+import userApi from '../../api/userApi';
+
 const UserManagementPage = () => {
-    const [nguoiDungs, setNguoiDungs] = useState([
-        {
-            id: 1,
-            hoTen: 'Nguyễn Văn Admin',
-            tenDangNhap: 'admin',
-            email: 'admin@chungcu.vn',
-            sdt: '0901234567',
-            vaiTro: 'admin',
-            trangThai: 'Hoạt động',
-            ngayTao: '2024-01-15',
-        },
-        {
-            id: 2,
-            hoTen: 'Trần Thị Quản Lý',
-            tenDangNhap: 'quanly01',
-            email: 'quanly@chungcu.vn',
-            sdt: '0912345678',
-            vaiTro: 'quanly',
-            trangThai: 'Hoạt động',
-            ngayTao: '2024-02-20',
-        },
-        {
-            id: 3,
-            hoTen: 'Lê Văn Kế Toán',
-            tenDangNhap: 'ketoan01',
-            email: 'ketoan@chungcu.vn',
-            sdt: '0923456789',
-            vaiTro: 'ketoan',
-            trangThai: 'Hoạt động',
-            ngayTao: '2024-03-10',
-        },
-        {
-            id: 4,
-            hoTen: 'Phạm Thị Hoa',
-            tenDangNhap: 'quanly02',
-            email: 'hoa@chungcu.vn',
-            sdt: '0934567890',
-            vaiTro: 'quanly',
-            trangThai: 'Hoạt động',
-            ngayTao: '2024-04-05',
-        },
-        {
-            id: 5,
-            hoTen: 'Hoàng Văn Nam',
-            tenDangNhap: 'ketoan02',
-            email: 'nam@chungcu.vn',
-            sdt: '0945678901',
-            vaiTro: 'ketoan',
-            trangThai: 'Tạm khóa',
-            ngayTao: '2024-05-12',
-        },
-    ]);
+    const [nguoiDungs, setNguoiDungs] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     const tableHeaders = [
         { label: 'Họ và tên', className: 'text-left'},
@@ -65,21 +17,21 @@ const UserManagementPage = () => {
     ];
 
     const renderUserRow = (nguoiDung) => (
-        <tr key={nguoiDung.id} className="hover:bg-gray-50 transition-colors">
+        <tr key={nguoiDung._id} className="hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center shrink-0">
                         <User className="w-5 h-5 text-indigo-600" />
                     </div>
                     <div className="min-w-0"> {/* Tránh tràn text nếu tên quá dài */}
-                        <p className="text-gray-800 font-medium truncate">{nguoiDung.hoTen}</p>
+                        <p className="text-gray-800 font-medium truncate">{nguoiDung.fullName}</p>
                         <p className="text-gray-500 text-xs truncate">{nguoiDung.email}</p>
                     </div>
                 </div>
             </td>
             <td className="px-6 py-4">
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getVaiTroColor(nguoiDung.vaiTro)}`}>
-                    {getVaiTroLabel(nguoiDung.vaiTro)}
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getVaiTroColor(nguoiDung.role)}`}>
+                    {getVaiTroLabel(nguoiDung.role)}
                 </span>
             </td>
             <td className="px-6 py-4">
@@ -90,7 +42,7 @@ const UserManagementPage = () => {
                     <button onClick={() => handleEdit(nguoiDung)} className="p-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg transition-colors" title="Sửa">
                         <Edit className="w-4 h-4" />
                     </button>
-                    <button onClick={() => handleDelete(nguoiDung.id)} className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors" title="Xóa">
+                    <button onClick={() => handleDelete(nguoiDung._id)} className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors" title="Xóa">
                         <Trash2 className="w-4 h-4" />
                     </button>
                 </div>
@@ -105,30 +57,46 @@ const UserManagementPage = () => {
     // Filter checkboxes
     const [filterVaiTro, setFilterVaiTro] = useState({
         admin: false,
-        quanly: false,
-        ketoan: false,
+        manager: false,
+        accountant: false,
     });
 
     const [formData, setFormData] = useState({
-        hoTen: '',
-        tenDangNhap: '',
+        fullName: '',
+        username: '',
         email: '',
-        sdt: '',
-        vaiTro: 'quanly',
-        matKhau: '',
-        trangThai: 'Hoạt động',
+        phone: '',
+        role: 'manager',
+        password: '',
+        status: 'Hoạt động',
     });
+
+    useEffect(() => {
+        fetchUsers();
+    }, []);
+
+    const fetchUsers = async () => {
+        try {
+            setLoading(true);
+            const response = await userApi.getAll();
+            setNguoiDungs(response.data);
+        } catch (error) {
+            console.error('Lỗi tải dữ liệu:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleAdd = () => {
         setEditingNguoiDung(null);
         setFormData({
-            hoTen: '',
-            tenDangNhap: '',
+            fullName: '',
+            username: '',
             email: '',
-            sdt: '',
-            vaiTro: 'quanly',
-            matKhau: '',
-            trangThai: 'Hoạt động',
+            phone: '',
+            role: 'manager',
+            password: '',
+            status: 'Hoạt động',
         });
         setShowModal(true);
     };
@@ -136,13 +104,13 @@ const UserManagementPage = () => {
     const handleEdit = (nguoiDung) => {
         setEditingNguoiDung(nguoiDung);
         setFormData({
-            hoTen: nguoiDung.hoTen,
-            tenDangNhap: nguoiDung.tenDangNhap,
-            email: nguoiDung.email,
-            sdt: nguoiDung.sdt,
-            vaiTro: nguoiDung.vaiTro,
-            matKhau: '',
-            trangThai: nguoiDung.trangThai,
+            fullName: nguoiDung.fullName || '',
+            username: nguoiDung.username || '',
+            email: nguoiDung.email || '',
+            phone: nguoiDung.phone || '',
+            role: nguoiDung.role || 'manager',
+            password: '',
+            status: nguoiDung.status || 'Hoạt động',
         });
         setShowModal(true);
     };
@@ -153,79 +121,69 @@ const UserManagementPage = () => {
 
     const handleDelete = (id) => {
         if (confirm('Bạn có chắc muốn xóa người dùng này?')) {
-            setNguoiDungs(nguoiDungs.filter((n) => n.id !== id));
+            userApi.remove(id)
+                .then(() => fetchUsers())
+                .catch(error => alert('Lỗi khi xóa: ' + (error.response?.data?.message || error.message)));
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (editingNguoiDung) {
-            setNguoiDungs(
-                nguoiDungs.map((n) =>
-                    n.id === editingNguoiDung.id
-                        ? { ...n, ...formData }
-                        : n
-                )
-            );
-        } else {
-            const newNguoiDung = {
-                id: Math.max(...nguoiDungs.map((n) => n.id), 0) + 1,
-                hoTen: formData.hoTen,
-                tenDangNhap: formData.tenDangNhap,
-                email: formData.email,
-                sdt: formData.sdt,
-                vaiTro: formData.vaiTro,
-                trangThai: formData.trangThai,
-                ngayTao: new Date().toISOString().split('T')[0],
-            };
-            setNguoiDungs([...nguoiDungs, newNguoiDung]);
+        try {
+            if (editingNguoiDung) {
+                await userApi.update(editingNguoiDung._id, formData);
+            } else {
+                await userApi.create(formData);
+            }
+            fetchUsers();
+            setShowModal(false);
+        } catch (error) {
+            alert('Lỗi: ' + (error.response?.data?.message || error.message));
         }
-
-        setShowModal(false);
     };
 
     // Filter logic
     const filteredNguoiDungs = nguoiDungs.filter((n) => {
         const matchesSearch =
-            n.hoTen.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            n.tenDangNhap.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            n.email.toLowerCase().includes(searchTerm.toLowerCase());
+            (n.fullName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (n.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (n.email || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-        const hasActiveFilter = filterVaiTro.admin || filterVaiTro.quanly || filterVaiTro.ketoan;
+        const hasActiveFilter = filterVaiTro.admin || filterVaiTro.manager || filterVaiTro.accountant;
 
         if (!hasActiveFilter) {
             return matchesSearch;
         }
 
         const matchesFilter =
-            (filterVaiTro.admin && n.vaiTro === 'admin') ||
-            (filterVaiTro.quanly && n.vaiTro === 'quanly') ||
-            (filterVaiTro.ketoan && n.vaiTro === 'ketoan');
+            (filterVaiTro.admin && n.role === 'admin') ||
+            (filterVaiTro.manager && n.role === 'manager') ||
+            (filterVaiTro.accountant && n.role === 'accountant');
 
         return matchesSearch && matchesFilter;
     });
 
-    const getVaiTroLabel = (vaiTro) => {
-        switch (vaiTro) {
+    const getVaiTroLabel = (role) => {
+        switch (role) {
             case 'admin':
                 return 'Admin';
-            case 'quanly':
+            case 'manager':
                 return 'Quản lý';
-            case 'ketoan':
+            case 'accountant':
                 return 'Kế toán';
             default:
-                return vaiTro;
+                return role;
         }
     };
 
-    const getVaiTroColor = (vaiTro) => {
-        switch (vaiTro) {
+    const getVaiTroColor = (role) => {
+        switch (role) {
             case 'admin':
                 return 'bg-red-100 text-red-600';
-            case 'quanly':
+            case 'manager':
                 return 'bg-blue-100 text-blue-600';
-            case 'ketoan':
+            case 'accountant':
                 return 'bg-green-100 text-green-600';
             default:
                 return 'bg-gray-100 text-gray-600';
@@ -241,23 +199,25 @@ const UserManagementPage = () => {
         },
         {
             label: 'Admin',
-            value: nguoiDungs.filter((n) => n.vaiTro === 'admin').length,
+            value: nguoiDungs.filter((n) => n.role === 'admin').length,
             icon: Shield,
             color: 'bg-red-500',
         },
         {
             label: 'Quản lý',
-            value: nguoiDungs.filter((n) => n.vaiTro === 'quanly').length,
+            value: nguoiDungs.filter((n) => n.role === 'manager').length,
             icon: User,
             color: 'bg-blue-500',
         },
         {
             label: 'Kế toán',
-            value: nguoiDungs.filter((n) => n.vaiTro === 'ketoan').length,
+            value: nguoiDungs.filter((n) => n.role === 'accountant').length,
             icon: User,
             color: 'bg-green-500',
         },
     ];
+
+    if (loading) return <div className="p-10 text-center">Đang tải dữ liệu...</div>;
 
     return (
         <div className="space-y-6">
@@ -321,9 +281,9 @@ const UserManagementPage = () => {
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
                                 type="checkbox"
-                                checked={filterVaiTro.quanly}
+                                checked={filterVaiTro.manager}
                                 onChange={(e) =>
-                                    setFilterVaiTro({ ...filterVaiTro, quanly: e.target.checked })
+                                    setFilterVaiTro({ ...filterVaiTro, manager: e.target.checked })
                                 }
                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                             />
@@ -334,9 +294,9 @@ const UserManagementPage = () => {
                             <input
                                 type="checkbox"
                                 id='checkbox1'
-                                checked={filterVaiTro.ketoan}
+                                checked={filterVaiTro.accountant}
                                 onChange={(e) =>
-                                    setFilterVaiTro({ ...filterVaiTro, ketoan: e.target.checked })
+                                    setFilterVaiTro({ ...filterVaiTro, accountant: e.target.checked })
                                 }
                                 className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                             />
@@ -376,12 +336,12 @@ const UserManagementPage = () => {
                             <div className="space-y-3">
                                 <div className="border-b pb-3">
                                     <p className="text-gray-600 text-sm mb-1">Họ và tên</p>
-                                    <p className="text-gray-900 font-medium">{viewingNguoiDung.hoTen}</p>
+                                    <p className="text-gray-900 font-medium">{viewingNguoiDung.fullName}</p>
                                 </div>
 
                                 <div className="border-b pb-3">
                                     <p className="text-gray-600 text-sm mb-1">Tên đăng nhập</p>
-                                    <p className="text-gray-900 font-medium">{viewingNguoiDung.tenDangNhap}</p>
+                                    <p className="text-gray-900 font-medium">{viewingNguoiDung.username}</p>
                                 </div>
 
                                 <div className="border-b pb-3">
@@ -391,32 +351,32 @@ const UserManagementPage = () => {
 
                                 <div className="border-b pb-3">
                                     <p className="text-gray-600 text-sm mb-1">Số điện thoại</p>
-                                    <p className="text-gray-900 font-medium">{viewingNguoiDung.sdt}</p>
+                                    <p className="text-gray-900 font-medium">{viewingNguoiDung.phone}</p>
                                 </div>
 
                                 <div className="border-b pb-3">
                                     <p className="text-gray-600 text-sm mb-1">Vai trò</p>
-                                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getVaiTroColor(viewingNguoiDung.vaiTro)}`}>
-                                        {getVaiTroLabel(viewingNguoiDung.vaiTro)}
+                                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getVaiTroColor(viewingNguoiDung.role || viewingNguoiDung.vaiTro)}`}>
+                                        {getVaiTroLabel(viewingNguoiDung.role || viewingNguoiDung.vaiTro)}
                                     </span>
                                 </div>
 
                                 <div className="border-b pb-3">
                                     <p className="text-gray-600 text-sm mb-1">Trạng thái</p>
                                     <span
-                                        className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${viewingNguoiDung.trangThai === 'Hoạt động'
+                                        className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${ (viewingNguoiDung.status || viewingNguoiDung.trangThai) === 'Hoạt động'
                                                 ? 'bg-green-100 text-green-600'
                                                 : 'bg-gray-100 text-gray-600'
                                             }`}
                                     >
-                                        {viewingNguoiDung.trangThai}
+                                        {viewingNguoiDung.status || viewingNguoiDung.trangThai}
                                     </span>
                                 </div>
 
                                 <div className="pb-3">
                                     <p className="text-gray-600 text-sm mb-1">Ngày tạo</p>
                                     <p className="text-gray-900 font-medium">
-                                        {new Date(viewingNguoiDung.ngayTao).toLocaleDateString('vi-VN')}
+                                        {new Date(viewingNguoiDung.createdAt || viewingNguoiDung.ngayTao || '').toLocaleDateString('vi-VN')}
                                     </p>
                                 </div>
                             </div>
@@ -447,8 +407,8 @@ const UserManagementPage = () => {
                                     <input
                                         type="text"
                                         required
-                                        value={formData.hoTen}
-                                        onChange={(e) => setFormData({ ...formData, hoTen: e.target.value })}
+                                        value={formData.fullName}
+                                        onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                         placeholder="Nhập họ và tên"
                                     />
@@ -459,8 +419,8 @@ const UserManagementPage = () => {
                                     <input
                                         type="text"
                                         required
-                                        value={formData.tenDangNhap}
-                                        onChange={(e) => setFormData({ ...formData, tenDangNhap: e.target.value })}
+                                        value={formData.username}
+                                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                         placeholder="Nhập tên đăng nhập"
                                         disabled={!!editingNguoiDung}
@@ -484,8 +444,8 @@ const UserManagementPage = () => {
                                     <input
                                         type="tel"
                                         required
-                                        value={formData.sdt}
-                                        onChange={(e) => setFormData({ ...formData, sdt: e.target.value })}
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                         placeholder="0912345678"
                                     />
@@ -495,15 +455,15 @@ const UserManagementPage = () => {
                                     <label className="block text-gray-700 mb-2 font-medium">Vai trò</label>
                                     <select
                                         required
-                                        value={formData.vaiTro}
+                                        value={formData.role}
                                         onChange={(e) =>
-                                            setFormData({ ...formData, vaiTro: e.target.value })
+                                            setFormData({ ...formData, role: e.target.value })
                                         }
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                     >
                                         <option value="admin">Admin</option>
-                                        <option value="quanly">Quản lý</option>
-                                        <option value="ketoan">Kế toán</option>
+                                        <option value="manager">Quản lý</option>
+                                        <option value="accountant">Kế toán</option>
                                     </select>
                                 </div>
 
@@ -511,9 +471,9 @@ const UserManagementPage = () => {
                                     <label className="block text-gray-700 mb-2 font-medium">Trạng thái</label>
                                     <select
                                         required
-                                        value={formData.trangThai}
+                                        value={formData.status}
                                         onChange={(e) =>
-                                            setFormData({ ...formData, trangThai: e.target.value })
+                                            setFormData({ ...formData, status: e.target.value })
                                         }
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                     >
@@ -529,8 +489,8 @@ const UserManagementPage = () => {
                                     <input
                                         type="password"
                                         required={!editingNguoiDung}
-                                        value={formData.matKhau}
-                                        onChange={(e) => setFormData({ ...formData, matKhau: e.target.value })}
+                                        value={formData.password}
+                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                         placeholder={editingNguoiDung ? 'Nhập mật khẩu mới' : 'Nhập mật khẩu'}
                                     />
