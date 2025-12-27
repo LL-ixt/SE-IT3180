@@ -8,17 +8,13 @@ import "react-datepicker/dist/react-datepicker.css";
 import AddFeeModal from './AddFeeModal';
 import paymentSessionApi from '../../api/paymentSessionApi';
 import feeApi from '../../api/feeApi';
+import householdApi from '../../api/householdApi';
+import TransactionList from '../PaymentSessions/TransactionList';
 // const existingFeeTypes = [
 //     { id: 1, name: 'Phí quản lý chung cư', price: 7000 },
 //     { id: 2, name: 'Phí vệ sinh', price: 30000 },
 //     { id: 3, name: 'Phí gửi xe máy', price: 80000 },
 // ];
-
-const apartments = [
-    { id: 'A101', owner: 'Nguyễn Văn A' },
-    { id: 'A102', owner: 'Trần Thị B' },
-    { id: 'B201', owner: 'Lê Văn C' },
-];
 
 const PaymentCollectionPage = () => {
     // State quản lý danh sách đợt thu
@@ -52,10 +48,12 @@ const PaymentCollectionPage = () => {
 
     //Danh sách khoản phí
     const [allFees, setAllFees] = useState([]);
+    const [households, setHouseholds] = useState([]);
 
     useEffect(() => {
         fetchSessions();
         fetchAllFees();
+        fetchHouseholds();
     }, []);
 
     const fetchSessions = async () => {
@@ -78,6 +76,43 @@ const PaymentCollectionPage = () => {
             console.error('Lỗi tải danh mục phí:', error);
         }
     };
+
+    const fetchHouseholds = async () => {
+        try {
+            const response = await householdApi.getAll();
+            setHouseholds(Array.isArray(response.data) ? response.data : []);
+        } catch (error) {
+            console.error('Lỗi tải danh sách hộ:', error);
+        }
+    };
+
+    // Khi chọn một khoản phí để nhập liệu, tải dữ liệu hóa đơn hiện có
+    useEffect(() => {
+        if (selectedFeeForInput && currentSession) {
+            const fetchExistingInvoices = async () => {
+                try {
+                    const res = await paymentSessionApi.getInvoices(currentSession._id || currentSession.id);
+                    const invoices = res.data || [];
+                    
+                    // Lọc hóa đơn của khoản phí đang chọn
+                    const targetFeeId = selectedFeeForInput.fee?._id || selectedFeeForInput.fee || selectedFeeForInput._id;
+                    const feeInvoices = invoices.filter(inv => (inv.fee._id || inv.fee) === targetFeeId);
+                    
+                    const initialData = {};
+                    feeInvoices.forEach(inv => {
+                        const hhId = inv.household._id || inv.household;
+                        initialData[hhId] = inv.amount;
+                    });
+                    setInputData(initialData);
+                } catch (error) {
+                    console.error("Lỗi tải hóa đơn:", error);
+                }
+            };
+            fetchExistingInvoices();
+        } else {
+            setInputData({});
+        }
+    }, [selectedFeeForInput, currentSession]);
 
     const handleCreateSession = async (e) => {
         e.preventDefault();
@@ -187,15 +222,24 @@ const PaymentCollectionPage = () => {
         }
     };
 
-    const handleSaveMoney = () => {
-        let total = 0;
-        Object.values(inputData).forEach(val => total += Number(val));
-        const updatedSession = { ...currentSession, totalCollected: currentSession.totalCollected + total };
-        setCurrentSession(updatedSession);
-        setSessions(sessions.map(s => s.id === updatedSession.id ? updatedSession : s));
-        alert(`Đã lưu! Tổng tiền ghi nhận thêm: ${total.toLocaleString()} đ`);
-        setView('DETAIL');
-        setInputData({});
+    const handleSaveMoney = async () => {
+        try {
+            const invoicesToUpdate = Object.keys(inputData).map(householdId => ({
+                householdId,
+                amount: inputData[householdId]
+            }));
+
+            const targetFeeId = selectedFeeForInput.fee?._id || selectedFeeForInput.fee || selectedFeeForInput._id;
+            const sessionId = currentSession._id || currentSession.id;
+            await paymentSessionApi.updateFeeInvoices(sessionId, targetFeeId, invoicesToUpdate);
+            
+            alert(`Đã cập nhật số liệu thành công!`);
+            setView('DETAIL');
+            setInputData({});
+        } catch (error) {
+            console.error("Lỗi lưu số liệu:", error);
+            alert("Lưu thất bại");
+        }
     };
 
     const renderSessionList = () => (
@@ -309,7 +353,7 @@ const PaymentCollectionPage = () => {
                     </div>
                     <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {mandatoryAutoFees.map((f, idx) => (
-                            <div key={idx} className="p-3 border border-gray-100 rounded-2xl flex justify-between items-center hover:bg-gray-50 transition-colors">
+                            <div key={idx} className="p-3 border border-gray-100 rounded-2xl flex justify-between items-center group hover:bg-gray-50 transition-colors">
                                 <span className="font-bold text-gray-700">{f.fee?.name}</span>
                                 <span className="text-blue-600 font-mono font-bold text-xs">{Number(f.unitPrice).toLocaleString()} đ/{f.fee?.unit}</span>
                                 <button 
@@ -329,25 +373,30 @@ const PaymentCollectionPage = () => {
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="p-4 bg-orange-50/50 border-b border-orange-100 flex justify-between items-center">
                         <span className="font-bold text-orange-700 text-sm uppercase">2. Bắt buộc - Thủ công (Điện, nước...)</span>
-                        <button 
-                            onClick={() => setView('INPUT_MONEY')}
-                            className="px-4 py-1.5 bg-orange-500 text-white rounded-xl text-xs font-bold hover:bg-orange-600 transition-all flex items-center gap-2 shadow-md shadow-orange-200"
-                        >
-                            <DollarSign size={14} /> Nhập số liệu
-                        </button>
                     </div>
                     <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {mandatoryManualFees.map((f, idx) => (
-                            <div key={idx} className="p-3 border border-gray-100 rounded-2xl flex justify-between items-center">
-                                <span className="font-bold text-gray-700">{f.fee?.name}</span>
-                                <span className="text-orange-600 font-mono font-bold text-xs">{Number(f.unitPrice).toLocaleString()} đ/{f.fee?.unit}</span>
-                                <button 
-                                    onClick={() => handleDeleteFee(f._id)}
-                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all group-hover:opacity-100"
-                                    title="Xóa khoản phí này"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                            <div key={idx} className="p-3 border border-gray-100 rounded-2xl flex justify-between items-center group hover:bg-gray-50 transition-colors">
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-gray-700">{f.fee?.name}</span>
+                                    <span className="text-orange-600 font-mono font-bold text-xs">{Number(f.unitPrice).toLocaleString()} đ/{f.fee?.unit}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <button 
+                                        onClick={() => { setSelectedFeeForInput(f); setView('INPUT_MONEY'); }}
+                                        className="p-2 bg-orange-100 text-orange-600 rounded-lg hover:bg-orange-200 transition-all"
+                                        title="Nhập số liệu"
+                                    >
+                                        <DollarSign size={16} />
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDeleteFee(f._id)}
+                                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                        title="Xóa khoản phí này"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                             </div>
                         ))}
                         {mandatoryManualFees.length === 0 && <p className="col-span-full text-center text-gray-400 text-xs italic py-2">Chưa có khoản thu nào</p>}
@@ -361,9 +410,16 @@ const PaymentCollectionPage = () => {
                     </div>
                     <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {voluntaryFees.map((f, idx) => (
-                            <div key={idx} className="p-3 border border-gray-100 rounded-2xl flex justify-between items-center">
+                            <div key={idx} className="p-3 border border-gray-100 rounded-2xl flex justify-between items-center group hover:bg-gray-50 transition-colors">
                                 <span className="font-bold text-gray-700">{f.fee?.name}</span>
                                 <span className="text-emerald-600 font-mono font-bold text-xs">{Number(f.unitPrice).toLocaleString()} đ</span>
+                                <button 
+                                    onClick={() => handleDeleteFee(f._id)}
+                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                    title="Xóa khoản phí này"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
                             </div>
                         ))}
                         {voluntaryFees.length === 0 && <p className="col-span-full text-center text-gray-400 text-xs italic py-2">Chưa có khoản thu nào</p>}
@@ -377,48 +433,32 @@ const PaymentCollectionPage = () => {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white rounded-4xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in zoom-in duration-200">
                 <div className="p-6 border-b bg-gray-50 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800">Ghi nhận số tiền thu</h2>
+                    <h2 className="text-2xl font-bold text-gray-800">
+                        Ghi nhận số tiền thu: <span className="text-blue-600">{selectedFeeForInput?.fee?.name || selectedFeeForInput?.name}</span>
+                    </h2>
                     <button onClick={() => setView('DETAIL')} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-all text-2xl font-light">×</button>
                 </div>
 
                 <div className="p-8 flex-1 overflow-y-auto">
-                    <div className="mb-8">
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-4">1. Chọn loại phí</label>
-                        <div className="flex gap-3 flex-wrap">
-                            {currentSession.fees.map(fee => (
-                                <button
-                                    key={fee.id}
-                                    onClick={() => setSelectedFeeForInput(fee)}
-                                    className={`px-6 py-3 rounded-2xl border-2 font-bold transition-all ${selectedFeeForInput?.id === fee.id
-                                        ? 'bg-blue-600 text-white border-blue-600 shadow-xl shadow-blue-200 -translate-y-1'
-                                        : 'bg-white text-gray-500 border-gray-100 hover:border-blue-200'
-                                    }`}
-                                >
-                                    {fee.name}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
                     {selectedFeeForInput && (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <label className="block text-xs font-bold text-gray-400 uppercase mb-4">2. Nhập tiền cư dân đóng: <span className="text-blue-600 ml-2">{selectedFeeForInput.name}</span></label>
                             <div className="rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
                                 <Table 
                                     headers={[{label: 'Căn hộ'}, {label: 'Chủ hộ'}, {label: 'Số tiền đóng (VNĐ)'}]}
-                                    data={apartments}
+                                    data={households}
                                     renderRow={(apt) => (
-                                        <tr key={apt.id}>
-                                            <td className="py-4 px-6 font-bold text-blue-600">{apt.id}</td>
+                                        <tr key={apt._id}>
+                                            <td className="py-4 px-6 font-bold text-blue-600">{apt.apartmentNumber}</td>
                                             <td className="py-4 px-6 font-bold text-gray-700">{apt.owner}</td>
                                             <td className="py-4 px-6">
                                                 <div className="relative max-w-50">
                                                     <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                                     <input
                                                         type="number"
-                                                        placeholder={selectedFeeForInput.price}
+                                                        placeholder="0"
+                                                        value={inputData[apt._id] || ''}
                                                         className="w-full pl-8 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                                                        onChange={(e) => setInputData({ ...inputData, [apt.id]: e.target.value })}
+                                                        onChange={(e) => setInputData({ ...inputData, [apt._id]: e.target.value })}
                                                     />
                                                 </div>
                                             </td>
@@ -451,6 +491,19 @@ const PaymentCollectionPage = () => {
             {!loading && view === 'LIST' && renderSessionList()}
             {!loading && view === 'DETAIL' && renderSessionDetail()}
             {!loading && view === 'INPUT_MONEY' && renderInputMoney()}
+            {!loading && view === 'APPROVE_TRANSACTION' && (
+                <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                    <div className="flex items-center gap-4 mb-4">
+                        <button 
+                            onClick={() => setView('DETAIL')} 
+                            className="text-gray-500 hover:text-blue-600 font-medium flex items-center gap-1"
+                        >
+                            ← Quay lại chi tiết
+                        </button>
+                    </div>
+                    <TransactionList session={currentSession} />
+                </div>
+            )}
 
             {/* Modal Tạo đợt thu mới */}
             <Modal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)}>

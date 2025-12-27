@@ -19,11 +19,6 @@ const getFees = async (req, res) => {
 const createFee = async (req, res) => {
     const { name, type, unitPrice, unit, description } = req.body;
 
-    // Validation (Basic check)
-    if (!name || !type || !unitPrice || !unit) {
-        return res.status(400).json({ message: 'Please fill in all required fields: name, type, unitPrice, unit' });
-    }
-
     try {
         // Check if a fee with the same name already exists
         const existingFee = await Fee.findOne({ name });
@@ -34,8 +29,8 @@ const createFee = async (req, res) => {
         const fee = new Fee({
             name,
             type,
-            unitPrice,
-            unit,
+            unitPrice: type === 'mandatory_automatic' ? unitPrice : undefined,
+            unit: type === 'mandatory_automatic' ? unit : undefined,
             description
         });
 

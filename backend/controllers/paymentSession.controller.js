@@ -1,8 +1,9 @@
 const PaymentSession = require('../models/paymentSession');
 const Fee = require('../models/fee');
 const mongoose = require('mongoose');
-//const Invoice = require('../models/invoice'); // Đảm bảo đường dẫn đúng tới file model Invoice
+const Invoice = require('../models/invoice');
 const Transaction = require('../models/transaction');
+const invoiceService = require('../services/invoice.service');
 // Helper function to check for valid ObjectId
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -48,6 +49,10 @@ const createPaymentSession = async (req, res) => {
         });
 
         const createdSession = await session.save();
+        
+        // Auto-generate invoices for all households
+        await invoiceService.generateInvoicesForSession(createdSession);
+
         res.status(201).json(createdSession);
     } catch (error) {
         res.status(400).json({ message: 'Error creating payment session', error: error.message });
@@ -78,6 +83,9 @@ const editPaymentSession = async (req, res) => {
             return res.status(404).json({ message: 'Payment Session not found' });
         }
 
+        // Auto-generate invoices for any new fees added during update
+        await invoiceService.generateInvoicesForSession(updatedSession);
+
         res.status(200).json(updatedSession);
     } catch (error) {
         res.status(400).json({ message: 'Error updating payment session', error: error.message });
@@ -96,13 +104,17 @@ const deletePaymentSession = async (req, res) => {
     }
 
     try {
-        // 1. Xóa tất cả Invoices thuộc đợt thu này
-        //await Invoice.deleteMany({ paymentSession: sessionId });
+        // 1. Tìm các Invoice thuộc đợt thu này để xóa Transaction tương ứng
+        const invoices = await Invoice.find({ paymentSession: id });
+        const invoiceIds = invoices.map(inv => inv._id);
     
-        // 2. Xóa tất cả Transactions thuộc đợt thu này
-        await Transaction.deleteMany({ paymentSession: id });
+        // 2. Xóa tất cả Transactions thuộc các Invoice này
+        await Transaction.deleteMany({ invoice: { $in: invoiceIds } });
 
-        // 3. Cuối cùng mới xóa Session
+        // 3. Xóa tất cả Invoices
+        await Invoice.deleteMany({ paymentSession: id });
+
+        // 4. Cuối cùng mới xóa Session
         const result = await PaymentSession.findByIdAndDelete(id);
 
         if (!result) {
@@ -140,10 +152,73 @@ const deleteFeeInPaymentSession = async (req, res) => {
     }
 };
 
+// @desc      Get invoices for a session (optionally filtered by household)
+// @route     GET /api/payments/sessions/:id/invoices
+// @access    Private
+const getInvoicesBySession = async (req, res) => {
+    const { id } = req.params;
+    const { householdId } = req.query;
+
+    if (!isValidId(id)) {
+        return res.status(400).json({ message: 'Invalid Session ID format' });
+    }
+
+    try {
+        const query = { paymentSession: id };
+        if (householdId) {
+             if (!isValidId(householdId)) {
+                return res.status(400).json({ message: 'Invalid Household ID format' });
+            }
+            query.household = householdId;
+        }
+
+        const invoices = await Invoice.find(query)
+            .populate('fee', 'name unit unitPrice')
+            .populate('household', 'apartmentNumber owner')
+            .sort({ 'household.apartmentNumber': 1 });
+
+        res.status(200).json(invoices);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching invoices', error: error.message });
+    }
+};
+
+// @desc      Bulk update/create invoices for a specific fee in a session
+// @route     PUT /api/payments/sessions/:id/fees/:feeId/invoices
+// @access    Private
+const updateInvoicesForFee = async (req, res) => {
+    const { id, feeId } = req.params;
+    const { invoices } = req.body; // Array of { householdId, amount }
+
+    if (!isValidId(id) || !isValidId(feeId)) {
+        return res.status(400).json({ message: 'Invalid IDs' });
+    }
+
+    try {
+        const operations = invoices.map(inv => ({
+            updateOne: {
+                filter: { paymentSession: id, fee: feeId, household: inv.householdId },
+                update: { $set: { amount: Number(inv.amount) } },
+                upsert: true
+            }
+        }));
+
+        if (operations.length > 0) {
+            await Invoice.bulkWrite(operations);
+        }
+
+        res.status(200).json({ message: 'Invoices updated successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating invoices', error: error.message });
+    }
+};
+
 module.exports = {
     getPaymentSessions,
     createPaymentSession,
     editPaymentSession,
     deletePaymentSession,
-    deleteFeeInPaymentSession
+    deleteFeeInPaymentSession,
+    getInvoicesBySession,
+    updateInvoicesForFee
 };

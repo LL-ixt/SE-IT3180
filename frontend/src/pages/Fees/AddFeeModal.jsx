@@ -61,33 +61,38 @@ const AddFeeModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
                             required 
                         />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Đơn giá (VND)</label>
-                            <input 
-                                type="number" 
-                                value={formData.unitPrice} 
-                                onChange={e => setFormData({ ...formData, unitPrice: e.target.value })} 
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                required 
-                            />
+                    
+                    {/* Chỉ hiển thị Đơn giá và Đơn vị nếu là phí Tự động */}
+                    {formData.type === 'mandatory_automatic' && (
+                        <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Đơn giá (VND)</label>
+                                <input 
+                                    type="number" 
+                                    value={formData.unitPrice} 
+                                    onChange={e => setFormData({ ...formData, unitPrice: e.target.value })} 
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                    required 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Tính theo</label>
+                                <select 
+                                    value={formData.unit} 
+                                    onChange={e => setFormData({ ...formData, unit: e.target.value })} 
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                >
+                                    <option value="">-- Chọn cách tính --</option>
+                                    <option value="area">Diện tích căn hộ (m²)</option>
+                                    <option value="person">Số người</option>
+                                    <option value="household">Hộ gia đình</option>
+                                    <option value="fixed">Cố định</option>
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Tính theo</label>
-                            <select 
-                                value={formData.unit} 
-                                onChange={e => setFormData({ ...formData, unit: e.target.value })} 
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            >
-                                <option value="">-- Chọn cách tính --</option>
-                                <option value="area">Diện tích căn hộ (m²)</option>
-                                <option value="person">Số người</option>
-                                <option value="household">Hộ gia đình</option>
-                                <option value="fixed">Cố định</option>
-                            </select>
-                        </div>
-                    </div>
+                    )}
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Loại phí</label>
                         <select 

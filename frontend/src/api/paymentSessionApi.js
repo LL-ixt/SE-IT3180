@@ -18,6 +18,12 @@ const paymentSessionApi = {
     },
     removeFee(session_id, fee_id) {
         return axiosClient.delete(`/paymentSessions/${session_id}/${fee_id}/`);
+    },
+    getInvoices(id, params) {
+        return axiosClient.get(`/paymentSessions/${id}/invoices`, { params });
+    },
+    updateFeeInvoices(sessionId, feeId, invoices) {
+        return axiosClient.put(`/paymentSessions/${sessionId}/fees/${feeId}/invoices`, { invoices });
     }
 };
 

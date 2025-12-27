@@ -42,8 +42,12 @@ const FeeManagerPage = () => {
     const renderRow = (item, index) => (
         <tr key={item._id} className="hover:bg-gray-50 transition-colors">
             <td className="py-4 px-6 font-medium text-gray-900">{item.name}</td>
-            <td className="py-4 px-6 text-blue-600 font-bold">{new Intl.NumberFormat('vi-VN').format(item.unitPrice)} đ</td>
-            <td className="py-4 px-6 text-gray-600">{getUnitLabel(item.unit)}</td>
+            <td className="py-4 px-6 text-blue-600 font-bold">
+                {item.unitPrice ? `${new Intl.NumberFormat('vi-VN').format(item.unitPrice)} đ` : '-'}
+            </td>
+            <td className="py-4 px-6 text-gray-600">
+                {item.unit ? getUnitLabel(item.unit) : '-'}
+            </td>
             <td className="py-4 px-6">
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                     item.type === 'voluntary' 

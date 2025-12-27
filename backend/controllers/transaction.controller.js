@@ -1,6 +1,7 @@
 const PaymentSession = require('../models/paymentSession');
 const Transaction = require('../models/transaction');
 const Fee = require('../models/fee');
+const Invoice = require('../models/invoice');
 const mongoose = require('mongoose');
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 // --- TRANSACTION (Giao dịch nộp tiền - UC005, UC007) ---
@@ -11,7 +12,11 @@ const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 const getTransactions = async (req, res) => {
     try {
         const transactions = await Transaction.find()
-            .populate('household fee paymentSession')
+            .populate('household')
+            .populate({
+                path: 'invoice',
+                populate: { path: 'paymentSession fee' } // Populate nested info
+            })
             .sort({ date: -1 });
 
         res.status(200).json(transactions);
@@ -25,7 +30,7 @@ const getTransactions = async (req, res) => {
 // @access    Private
 const createTransaction = async (req, res) => {
     // household: ObjectId, fee/paymentSession: ObjectId (Tùy chọn), amount: Number, payerName: String
-    const { household, paymentSession, fee, amount, payerName, method } = req.body;
+    let { household, invoice, fee, paymentSession, amount, payerName, method } = req.body;
 
     if (!household || !amount) {
         return res.status(400).json({ message: 'Household ID and Amount are required for a transaction.' });
@@ -34,10 +39,44 @@ const createTransaction = async (req, res) => {
     // Tùy chọn: Thêm logic kiểm tra xem hộ đã nộp cho khoản này trong đợt này chưa (UC005 logic)
 
     try {
+        // CASE: Voluntary Fee (or Manual) where Invoice doesn't exist yet
+        if (!invoice && fee && paymentSession) {
+            // Check if invoice exists (to avoid duplicates if frontend logic slips)
+            let targetInvoice = await Invoice.findOne({ household, fee, paymentSession });
+            
+            if (!targetInvoice) {
+                // Create new invoice on the fly
+                // For voluntary, the "required amount" is effectively what they are paying now
+                targetInvoice = await Invoice.create({
+                    household,
+                    fee,
+                    paymentSession,
+                    amount: Number(amount), // Set debt equal to payment amount
+                    paidAmount: 0,
+                    status: 'unpaid' // Will be updated to 'paid' below
+                });
+            }
+            invoice = targetInvoice._id;
+        }
+
+        // Update Invoice status if invoice ID is provided
+        if (invoice) {
+            const targetInvoice = await Invoice.findById(invoice);
+            if (targetInvoice) {
+                targetInvoice.paidAmount = (targetInvoice.paidAmount || 0) + Number(amount);
+                
+                if (targetInvoice.paidAmount >= targetInvoice.amount) {
+                    targetInvoice.status = 'paid';
+                } else {
+                    targetInvoice.status = 'partial';
+                }
+                await targetInvoice.save();
+            }
+        }
+
         const transaction = new Transaction({
             household,
-            paymentSession,
-            fee,
+            invoice,
             amount,
             payerName,
             method,
@@ -66,7 +105,11 @@ const editTransaction = async (req, res) => {
             id,
             req.body, 
             { new: true, runValidators: true }
-        ).populate('household fee paymentSession'); // Populate để trả về thông tin chi tiết
+        ).populate('household')
+         .populate({
+            path: 'invoice',
+            populate: { path: 'paymentSession fee' }
+         });
 
         if (!updatedTransaction) {
             return res.status(404).json({ message: 'Transaction not found' });
@@ -89,8 +132,17 @@ const getTransactionsBySession = async (req, res) => {
     }
 
     try {
-        const transactions = await Transaction.find({ paymentSession: id })
-            .populate('household fee')
+        // 1. Find all invoices for this session
+        const invoices = await Invoice.find({ paymentSession: id }).select('_id');
+        const invoiceIds = invoices.map(inv => inv._id);
+
+        // 2. Find transactions linked to those invoices
+        const transactions = await Transaction.find({ invoice: { $in: invoiceIds } })
+            .populate('household')
+            .populate({
+                path: 'invoice',
+                populate: { path: 'fee paymentSession' }
+            })
             .sort({ date: 1 });
 
         res.status(200).json(transactions);

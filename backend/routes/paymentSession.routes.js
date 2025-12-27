@@ -5,7 +5,9 @@ const { getPaymentSessions,
     createPaymentSession,
     editPaymentSession,
     deletePaymentSession,
-    deleteFeeInPaymentSession } = require('../controllers/paymentSession.controller');
+    deleteFeeInPaymentSession,
+    getInvoicesBySession,
+    updateInvoicesForFee } = require('../controllers/paymentSession.controller');
 const { getTransactionsBySession } = require('../controllers/transaction.controller');
 
 // Route cho các thao tác Lấy danh sách (GET) và Tạo mới (POST)
@@ -21,6 +23,14 @@ router.route('/:id')
 // Endpoint: /api/paymentSessions/:id/transactions
 router.route('/:id/transactions') 
     .get(protect, getTransactionsBySession);
+
+// Endpoint: /api/paymentSessions/:id/invoices
+router.route('/:id/invoices')
+    .get(protect, getInvoicesBySession);
+
+// Endpoint: /api/paymentSessions/:id/fees/:feeId/invoices
+router.route('/:id/fees/:feeId/invoices')
+    .put(protect, updateInvoicesForFee);
 
 router.route('/:session_id/:fee_id')
     .delete(protect, deleteFeeInPaymentSession)

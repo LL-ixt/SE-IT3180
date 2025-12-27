@@ -1,51 +1,51 @@
-import React, { useState } from 'react';
-import { Search, Plus, Edit, Trash2, Check, User, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Plus, Edit, Trash2, Check, User, Clock, X } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import SearchBar from '../../components/common/SearchBar';
-// DỮ LIỆU GIẢ (MOCK DATA) ĐỂ CHECK GIAO DIỆN
-const mockTransactions = [
-    {
-        _id: 't1',
-        household: { apartmentNumber: '208' }, // Liên kết schema Household
-        amount: 1234567,
-        payerName: 'Nguyễn Văn A',
-        date: '2025-12-25T10:30:00Z',
-        method: 'bank',
-        note: 'Phong 208 chuyen dot phi thang 12',
-        status: 'unchecked' // Màu xám
-    },
-    {
-        _id: 't2',
-        household: { apartmentNumber: '305' },
-        amount: 850000,
-        payerName: 'Trần Thị B',
-        date: '2025-12-26T08:15:00Z',
-        method: 'cash',
-        note: 'Dong tien ve sinh quy 4',
-        status: 'unchecked'
-    },
-    {
-        _id: 't3',
-        household: { apartmentNumber: '102' },
-        amount: 2500000,
-        payerName: 'Lê Văn C',
-        date: '2025-12-20T14:00:00Z',
-        method: 'card',
-        note: 'Thanh toan tron goi thang 12',
-        status: 'checked' // Màu xanh
-    }
-];
+import transactionApi from '../../api/transactionApi';
+import AddTransactionModal from './AddTransactionModal';
 
-const TransactionList = () => {
-    // Sử dụng dữ liệu giả cho state
-    const [transactions, setTransactions] = useState(mockTransactions);
+const TransactionList = ({ session }) => {
+    const [transactions, setTransactions] = useState([]);
+    const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isAddModalOpen, setAddModalOpen] = useState(false);
 
-    // Hàm giả lập cập nhật trạng thái
-    const handleToggleStatus = (id) => {
-        setTransactions(transactions.map(t => 
-            t._id === id ? { ...t, status: t.status === 'checked' ? 'unchecked' : 'checked' } : t
-        ));
+    useEffect(() => {
+        if (session) {
+            fetchTransactions();
+        }
+    }, [session]);
+
+    const fetchTransactions = async () => {
+        try {
+            setLoading(true);
+            const sessionId = session._id || session.id;
+            if (!sessionId) return;
+            
+            // Gọi API lấy danh sách giao dịch theo đợt thu
+            const response = await transactionApi.getTransactionsBySession(sessionId);
+            setTransactions(Array.isArray(response.data) ? response.data : []);
+        } catch (error) {
+            console.error("Lỗi tải giao dịch:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleToggleStatus = async (id, currentStatus) => {
+        try {
+            const newStatus = currentStatus === 'checked' ? 'unchecked' : 'checked';
+            await transactionApi.update(id, { status: newStatus });
+            
+            // Cập nhật state local (Optimistic update)
+            setTransactions(transactions.map(t => 
+                t._id === id ? { ...t, status: newStatus } : t
+            ));
+        } catch (error) {
+            console.error("Lỗi cập nhật trạng thái:", error);
+            alert("Không thể cập nhật trạng thái");
+        }
     };
 
     const renderTransactionCard = (t) => (
@@ -64,6 +64,9 @@ const TransactionList = () => {
                             <p className="text-lg font-black text-gray-800">
                                 {t.amount.toLocaleString('vi-VN')} VND
                             </p>
+                            <p className="text-sm font-bold text-blue-600">
+                                {t.invoice?.fee?.name || 'Khoản thu khác'}
+                            </p>
                             <p className="text-sm text-gray-600 mt-0.5 font-medium">
                                 {t.note}
                             </p>
@@ -71,11 +74,11 @@ const TransactionList = () => {
                         
                         <div className="flex gap-1">
                             <button 
-                                onClick={() => handleToggleStatus(t._id)}
+                                onClick={() => handleToggleStatus(t._id, t.status)}
                                 className={`p-2 rounded-lg transition-colors ${t.status === 'unchecked' ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-gray-100 text-gray-400'}`}
                                 title={t.status === 'unchecked' ? "Duyệt giao dịch" : "Hủy duyệt"}
                             >
-                                <Check size={16} strokeWidth={3} />
+                                {t.status === 'unchecked' ? <Check size={16} strokeWidth={3} /> : <X size={16} strokeWidth={3} />}
                             </button>
                             <button className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Edit size={16} /></button>
                             <button className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Trash2 size={16} /></button>
@@ -98,11 +101,15 @@ const TransactionList = () => {
         </div>
     );
 
+    const filteredTransactions = transactions.filter(t => 
+        t.household?.apartmentNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
         <div className="bg-white rounded-3xl border border-gray-200 shadow-2xl p-6 h-full flex flex-col max-w-xl ml-auto">
             <div className="flex justify-between items-center ">
                 <h2 className="text-2xl font-bold text-gray-800">Danh sách giao dịch</h2>
-                <Button className="bg-linear-to-r from-blue-500 to-cyan-500">
+                <Button onClick={() => setAddModalOpen(true)} className="bg-linear-to-r from-blue-500 to-cyan-500">
                     Thêm giao dịch
                 </Button>
             </div>
@@ -112,13 +119,16 @@ const TransactionList = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-8">
+                {loading && <p className="text-center text-gray-500">Đang tải...</p>}
+                
                 {/* Nhóm Chưa duyệt */}
                 <section>
                     <div className="flex items-center gap-2 mb-4 px-2">
                         <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
                         <h3 className="text-xs font-bold text-gray-400 uppercase">Chưa duyệt</h3>
                     </div>
-                    {transactions.filter(t => t.status === 'unchecked').map(renderTransactionCard)}
+                    {filteredTransactions.filter(t => t.status === 'unchecked').map(renderTransactionCard)}
+                    {filteredTransactions.filter(t => t.status === 'unchecked').length === 0 && <p className="text-xs text-gray-400 italic px-2">Không có giao dịch</p>}
                 </section>
 
                 {/* Nhóm Đã duyệt */}
@@ -127,9 +137,16 @@ const TransactionList = () => {
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                         <h3 className="text-xs font-bold text-gray-800 uppercase">Đã duyệt</h3>
                     </div>
-                    {transactions.filter(t => t.status === 'checked').map(renderTransactionCard)}
+                    {filteredTransactions.filter(t => t.status === 'checked').map(renderTransactionCard)}
                 </section>
             </div>
+
+            <AddTransactionModal 
+                isOpen={isAddModalOpen} 
+                onClose={() => setAddModalOpen(false)}
+                session={session}
+                onSuccess={fetchTransactions}
+            />
         </div>
     );
 };

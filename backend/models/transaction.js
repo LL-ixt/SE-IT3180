@@ -5,7 +5,8 @@ const transactionSchema = mongoose.Schema({
 	household: { type: mongoose.Schema.Types.ObjectId, ref: 'Household', required: true },
 	//BỎ VÌ 1 GIAO DỊCH CÓ THỂ THANH TOÁN TẤT CẢ KHOẢN PHÍ
 	//fee: { type: mongoose.Schema.Types.ObjectId, ref: 'Fee' },
-	paymentSession: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentSession' },
+    // Reference to the specific Invoice being paid
+    invoice: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' },
 	amount: { type: Number, required: true },
 	date: { type: Date, default: Date.now },
 	payerName: { type: String },
