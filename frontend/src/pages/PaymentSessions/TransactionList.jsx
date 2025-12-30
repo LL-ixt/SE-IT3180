@@ -178,14 +178,14 @@ import transactionApi from '../../api/transactionApi';
 import AddTransactionModal from './AddTransactionModal';
 import paymentSessionApi from '../../api/paymentSessionApi';
 import householdApi from '../../api/householdApi'; // 1. Import API hộ dân
-
+import { useAuth } from '../../context/AuthContext';
 const TransactionList = ({ session }) => {
     const [transactions, setTransactions] = useState([]);
     const [households, setHouseholds] = useState([]); // 2. State lưu danh sách hộ dân
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isAddModalOpen, setAddModalOpen] = useState(false);
-
+    const { user } = useAuth();
     // 3. Tải dữ liệu ban đầu
     useEffect(() => {
         fetchHouseholds(); // Tải danh sách hộ dân để phục vụ tìm kiếm trong Modal
@@ -202,14 +202,17 @@ const TransactionList = ({ session }) => {
             console.error("Lỗi tải danh sách hộ dân:", error);
         }
     };
-
+    const sessionId = session._id || session.id;
     const fetchTransactions = async () => {
         try {
             setLoading(true);
-            const sessionId = session._id || session.id;
-            if (!sessionId) return;
-            
-            const response = await paymentSessionApi.getTransactionsBySession(sessionId);
+            const sId = session?._id || session?.id;
+            console.log("Đang fetch cho Session ID:", sId); // Kiểm tra xem có ID chưa
+
+            if (!sId) return;
+
+            const response = await paymentSessionApi.getTransactionsBySession(sId);
+            console.log("Dữ liệu nhận về:", response.data); // Kiểm tra status và household
             setTransactions(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Lỗi tải giao dịch:", error);
@@ -258,9 +261,9 @@ const TransactionList = ({ session }) => {
                             <p className="text-lg font-black text-gray-800">
                                 {t.amount?.toLocaleString('vi-VN')} VND
                             </p>
-                            <p className="text-sm font-bold text-blue-600">
+                            {/* <p className="text-sm font-bold text-blue-600">
                                 {t.invoice?.fee?.name || 'Khoản thu khác'}
-                            </p>
+                            </p> */}
                             <p className="text-sm text-gray-600 mt-0.5 font-medium">
                                 {t.note}
                             </p>
@@ -341,8 +344,10 @@ const TransactionList = ({ session }) => {
                 isOpen={isAddModalOpen} 
                 onClose={() => setAddModalOpen(false)}
                 households={households} 
-                session={session}
+                currentSession={sessionId}
+                currentUser={user._id}
                 onSubmit={async (data) => {
+                    console.log(data);
                     await transactionApi.create(data);
                     fetchTransactions();
                     setAddModalOpen(false);

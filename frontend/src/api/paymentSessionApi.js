@@ -27,6 +27,17 @@ const paymentSessionApi = {
     },
     getTransactionsBySession(id) {
         return axiosClient.get(`/paymentSessions/${id}/transactions`);
+    },
+    getPaymentDetails(id) {
+        return axiosClient.get(`/paymentSessions/${id}/details`);
+    },
+    updateColumnQuantity(sessionId, feeInSessionId, updates) {
+        // Gửi yêu cầu PUT tới backend kèm theo mảng các thay đổi
+        return axiosClient.put(`/paymentSessions/${sessionId}/columns/${feeInSessionId}`, { updates });
+    },
+    toggleFeePayment(detailId, payload) {
+        // payload gồm { feeInSessionId, mode: 'SINGLE' | 'ALL_MANDATORY' }
+        return axiosClient.put(`/paymentSessions/details/${detailId}/toggle`, payload);
     }
 };
 

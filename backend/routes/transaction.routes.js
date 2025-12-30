@@ -4,7 +4,8 @@ const { protect } = require('../middleware/auth.middleware');
 const { 
     getTransactions,
     createTransaction,
-    editTransaction} = require('../controllers/transaction.controller');
+    editTransaction,
+    deleteTransaction} = require('../controllers/transaction.controller');
 
 // Route cho các thao tác Lấy danh sách (GET) và Tạo mới (POST)
 // Endpoint: /api/transactions
@@ -15,4 +16,5 @@ router.route('/')
 // Endpoint: /api/transactions/:id
 router.route('/:id')
     .put(protect, editTransaction)    // Sửa Giao dịch theo ID
+    .delete(protect, deleteTransaction)
 module.exports = router;

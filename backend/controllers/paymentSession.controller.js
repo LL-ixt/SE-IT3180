@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const Invoice = require('../models/invoice');
 const Transaction = require('../models/transaction');
 const invoiceService = require('../services/invoice.service');
+const Household = require('../models/household');
+const HouseholdPaymentDetail = require('../models/householdPaymentDetail');
 // Helper function to check for valid ObjectId
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -59,6 +61,35 @@ const createPaymentSession = async (req, res) => {
     }
 };
 
+const syncHouseholdPayments = async (session) => {
+    const households = await Household.find({});
+    
+    // Tạo danh sách items chuẩn từ session hiện tại
+    const feeItems = session.fees.map(f => ({
+        feeInSessionId: f._id,
+        feeRef: f.fee._id || f.fee,
+        feeName: f.fee.name, 
+        feeType: f.fee.type,
+        unitPrice: f.unitPrice,
+        quantity: 0,
+        totalAmount: 0,
+        paidAmount: 0,
+        isPaid: false
+    }));
+
+    const ops = households.map(h => ({
+        updateOne: {
+            filter: { paymentSession: session._id, household: h._id },
+            // SỬA TẠI ĐÂY: Thay vì $set items, hãy dùng logic thông minh hơn
+            // Hoặc đơn giản là $set toàn bộ items nếu bạn chấp nhận reset số liệu khi thêm cột (không khuyến khích)
+            update: { $set: { items: feeItems } }, 
+            upsert: true 
+        }
+    }));
+
+    await HouseholdPaymentDetail.bulkWrite(ops);
+};
+
 // @desc      Update payment session
 // @route     PUT /api/payments/sessions/:id
 // @access    Private
@@ -70,10 +101,11 @@ const editPaymentSession = async (req, res) => {
     }
 
     try {
+        // 1. Cập nhật Session và Populate đầy đủ để lấy tên phí
         const updatedSession = await PaymentSession.findByIdAndUpdate(
             id,
-            req.body, // Cập nhật tất cả các trường được gửi trong body
-            { new: true, runValidators: true } // Trả về bản ghi mới và chạy validator
+            req.body,
+            { new: true, runValidators: true }
         ).populate({
             path: 'fees.fee',
             select: 'name type unit'
@@ -82,12 +114,14 @@ const editPaymentSession = async (req, res) => {
         if (!updatedSession) {
             return res.status(404).json({ message: 'Payment Session not found' });
         }
-
-        // Auto-generate invoices for any new fees added during update
-        await invoiceService.generateInvoicesForSession(updatedSession);
+        console.log("Sẽ gọi hàm sync");
+        // 2. TỰ ĐỘNG SINH BẢN GHI CHO TỪNG CĂN HỘ
+        // Hàm này sẽ tạo {Số căn hộ} bản ghi trong HouseholdPaymentDetail
+        await syncHouseholdPayments(updatedSession);
 
         res.status(200).json(updatedSession);
     } catch (error) {
+        console.error("Lỗi đồng bộ bảng thu:", error);
         res.status(400).json({ message: 'Error updating payment session', error: error.message });
     }
 };
@@ -213,6 +247,115 @@ const updateInvoicesForFee = async (req, res) => {
     }
 };
 
+// @desc      Get all household payment details (Excel rows) for a session
+// @route     GET /api/paymentSessions/:id/details
+// @access    Private
+const getPaymentDetails = async (req, res) => {
+    const { id } = req.params; // ID của PaymentSession
+
+    if (!isValidId(id)) {
+        return res.status(400).json({ message: 'Định dạng Session ID không hợp lệ' });
+    }
+
+    try {
+        // Tìm tất cả các dòng dữ liệu (mỗi dòng là 1 hộ) thuộc đợt thu này
+        const details = await HouseholdPaymentDetail.find({ paymentSession: id })
+            .populate('household', 'apartmentNumber ownerName') // Lấy thông tin căn hộ để hiển thị
+            .sort({ 'household.apartmentNumber': 1 }); // Sắp xếp theo số phòng cho dễ nhìn
+
+        // Nếu chưa có bản ghi nào (có thể do chưa chạy hàm đồng bộ), trả về mảng rỗng
+        res.status(200).json(details);
+    } catch (error) {
+        console.error("Lỗi getPaymentDetails:", error);
+        res.status(500).json({ 
+            message: 'Lỗi khi tải chi tiết bảng thu', 
+            error: error.message 
+        });
+    }
+};
+
+// File: controllers/paymentSession.controller.js
+// Tại paymentSession.controller.js
+const updateColumnQuantity = async (req, res) => {
+    const { id: sessionId, feeId: feeInSessionId } = req.params;
+    const { updates } = req.body;
+
+    try {
+        const bulkOps = updates.map(upd => {
+            const qty = Number(upd.quantity) || 0;
+            
+            // Logic: Nếu là phí tự nguyện và có nhập tiền (>0), set luôn isPaid = true
+            const updateFields = { "items.$.quantity": qty };
+            
+            // Tìm loại phí để biết có phải tự nguyện không
+            // Tuy nhiên bulkWrite khó check điều kiện này, nên ta sẽ xử lý trong vòng lặp save() phía dưới
+            return {
+                updateOne: {
+                    filter: { paymentSession: sessionId, household: upd.householdId, "items.feeInSessionId": feeInSessionId },
+                    update: { $set: updateFields }
+                }
+            };
+        });
+
+        await HouseholdPaymentDetail.bulkWrite(bulkOps);
+
+        // Sau khi bulkWrite, ta load lại để chạy Middleware pre('save')
+        const docs = await HouseholdPaymentDetail.find({ paymentSession: sessionId });
+        for (const doc of docs) {
+            // Duyệt qua các item vừa cập nhật để set isPaid cho phí tự nguyện
+            doc.items.forEach(item => {
+                if (item.feeInSessionId.toString() === feeInSessionId && item.feeType === 'voluntary') {
+                    if (item.quantity > 0) {
+                        item.isPaid = true;
+                        item.paidAmount = item.quantity; // Với phí tự nguyện, totalAmount = quantity
+                    } else {
+                        item.isPaid = false;
+                        item.paidAmount = 0;
+                    }
+                }
+            });
+            await doc.save();
+        }
+
+        res.status(200).json({ message: "Cập nhật thành công" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const toggleFeePayment = async (req, res) => {
+    const { id: detailId } = req.params; // ID của bản ghi HouseholdPaymentDetail
+    const { feeInSessionId, mode } = req.body; 
+
+    try {
+        const detail = await HouseholdPaymentDetail.findById(detailId);
+        if (!detail) return res.status(404).json({ message: "Không tìm thấy bản ghi" });
+
+        if (mode === 'ALL_MANDATORY') {
+            // Duyệt qua tất cả các mục phí bắt buộc và đánh dấu đã nộp
+            detail.items.forEach(item => {
+                if (item.feeType !== 'voluntary') {
+                    item.isPaid = true;
+                    item.paidAmount = item.totalAmount;
+                }
+            });
+        } else {
+            // Tìm đúng ô phí được click để toggle
+            const item = detail.items.find(i => i.feeInSessionId.toString() === feeInSessionId);
+            if (item) {
+                // Đảo trạng thái: Nếu đang xanh (paid) thì thành trắng (unpaid) và ngược lại
+                item.isPaid = !item.isPaid;
+                item.paidAmount = item.isPaid ? item.totalAmount : 0;
+            }
+        }
+
+        // Middleware pre('save') sẽ tự động tính lại tổng tiền đã nộp và trạng thái
+        await detail.save();
+        res.status(200).json(detail);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
 module.exports = {
     getPaymentSessions,
     createPaymentSession,
@@ -220,5 +363,8 @@ module.exports = {
     deletePaymentSession,
     deleteFeeInPaymentSession,
     getInvoicesBySession,
-    updateInvoicesForFee
+    updateInvoicesForFee,
+    getPaymentDetails,
+    updateColumnQuantity,
+    toggleFeePayment
 };

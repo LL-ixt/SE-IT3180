@@ -4,7 +4,7 @@
 
 ### --- TEST 1: GHI NHẬN NỘP TIỀN (CREATE) ---
 # Endpoint: POST /api/transactions
-@transactionId = 6933f1aefcedd4dc2a654576
+@transactionId = 695382e3cd79049125f28536
 POST {{host}}/api/transactions
 Content-Type: application/json
 Authorization: Bearer {{token}}

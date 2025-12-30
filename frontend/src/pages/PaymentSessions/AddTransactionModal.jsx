@@ -3,7 +3,7 @@ import { Search, CheckCircle } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 
-const AddTransactionModal = ({ isOpen, onClose, households, onSubmit, currentUser }) => {
+const AddTransactionModal = ({ isOpen, onClose, households, onSubmit, currentUser, currentSession }) => {
     // 1. Bổ sung State giống bên Resident
     const [aptSearch, setAptSearch] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -46,7 +46,8 @@ const AddTransactionModal = ({ isOpen, onClose, households, onSubmit, currentUse
         const submitData = {
             ...formData,
             household: selectedHousehold._id,
-            createdBy: currentUser?._id,
+            paymentSession: currentSession, 
+            createdBy: currentUser,
             amount: Number(formData.amount)
         };
         

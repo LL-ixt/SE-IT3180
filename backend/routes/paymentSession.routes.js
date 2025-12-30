@@ -7,7 +7,10 @@ const { getPaymentSessions,
     deletePaymentSession,
     deleteFeeInPaymentSession,
     getInvoicesBySession,
-    updateInvoicesForFee } = require('../controllers/paymentSession.controller');
+    updateInvoicesForFee,
+    getPaymentDetails,
+    updateColumnQuantity,
+    toggleFeePayment } = require('../controllers/paymentSession.controller');
 const { getTransactionsBySession } = require('../controllers/transaction.controller');
 
 // Route cho các thao tác Lấy danh sách (GET) và Tạo mới (POST)
@@ -34,4 +37,13 @@ router.route('/:id/fees/:feeId/invoices')
 
 router.route('/:session_id/:fee_id')
     .delete(protect, deleteFeeInPaymentSession)
+
+router.route('/:id/details')
+    .get(protect, getPaymentDetails)
+
+router.route('/:id/columns/:feeId')
+    .put(protect, updateColumnQuantity);
+
+router.route('/details/:id/toggle')
+    .put(protect, toggleFeePayment);
 module.exports = router;

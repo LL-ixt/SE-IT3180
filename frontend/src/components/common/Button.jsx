@@ -14,7 +14,7 @@ export const Button = ({ children, className = '', ...props }) => {
             className={`${defaultStyles} ${className}`} // Kết hợp kiểu mặc định và kiểu tùy chỉnh
             {...props}
         >
-            <div class = "px-3 flex h-8 w-full items-center justify-center rounded-xl bg-white group-hover:bg-transparent">
+            <div className = "px-3 flex h-8 w-full items-center justify-center rounded-xl bg-white group-hover:bg-transparent">
                 {children}
             </div>
         </button>
