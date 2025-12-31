@@ -63,6 +63,15 @@ const PaymentCollectionPage = () => {
         }
     };
 
+    const fetchAllFees = async () => {
+        try {
+            const response = await feeApi.getAll(); // Gọi tới API danh mục phí
+            setAllFees(response.data);
+        } catch (error) {
+            console.error('Lỗi tải danh mục phí:', error);
+        }
+    };
+
     const fetchPaymentDetails = async () => {
         if (!currentSession?._id) return;
         try {
@@ -90,6 +99,7 @@ const PaymentCollectionPage = () => {
     // useEffect duy nhất quản lý việc tải dữ liệu chi tiết
     useEffect(() => {
         fetchSessions();
+        fetchAllFees();
         if (currentSession?._id && ['DETAIL', 'INPUT_MONEY', 'APPROVE_TRANSACTION'].includes(view)) {
             fetchPaymentDetails();
         }
