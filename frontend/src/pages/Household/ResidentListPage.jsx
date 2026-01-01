@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, User } from 'lucide-react';
+import { Plus, Edit, Trash2, User, ArrowRightLeft } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 import SearchBar from '../../components/common/SearchBar';
@@ -8,6 +8,8 @@ import { useAuth } from '../../context/AuthContext';
 import DatePicker from "react-datepicker";
 import residentsApi from '../../api/residentsApi';
 import householdApi from '../../api/householdApi';
+import ResidenceChangeModal from './ResidenceChangeModal';
+import residenceChangeApi from '../../api/residenceChangeApi';
 
 // const initialResidents = [
 //     { id: 1, name: 'Nguyễn Văn A', idCard: '001234567890', birthDate: '15/05/1980', gender: 'Nam', phone: '0901234567', apartment: 'A101', relationship: 'Chủ hộ', moveInDate: '01/01/2020' },
@@ -23,6 +25,7 @@ const ResidentListPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResident, setEditingResident] = useState(null);
+    const [isChangeModalOpen, setIsChangeModalOpen] = useState(false);
     const [households, setHouseholds] = useState([]);
     const [aptSearch, setAptSearch] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -83,6 +86,7 @@ const ResidentListPage = () => {
         { label: 'Số ĐT', className: 'text-left' },
         { label: 'Căn hộ', className: 'text-left' },
         { label: 'Quan hệ', className: 'text-left' },
+        { label: 'Trạng thái', className: 'text-left' },
         { label: 'Thao tác', className: 'text-left' }
     ];
 
@@ -106,6 +110,16 @@ const ResidentListPage = () => {
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${resident.relationToOwner === 'owner' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
                     }`}>
                     {resident.relationToOwner === 'owner' ? 'Chủ hộ' : resident.relationToOwner === 'spouse' ? 'Vợ/Chồng' : resident.relationToOwner === 'child' ? 'Con' : resident.relationToOwner === 'parent' ? 'Bố/Mẹ' : resident.relationToOwner === 'sibling' ? 'Anh/Chị/Em' : resident.relationToOwner === 'relative' ? 'Người thân' : resident.relationToOwner === 'renter' ? 'Người thuê' : 'Khác'}
+                </span>
+            </td>
+            <td className="py-4 px-6">
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    resident.status === 'temporary_residence' ? 'bg-yellow-100 text-yellow-700' :
+                    resident.status === 'temporary_absence' ? 'bg-red-100 text-red-700' :
+                    'bg-green-100 text-green-700'
+                }`}>
+                    {resident.status === 'temporary_residence' ? 'Tạm trú' :
+                     resident.status === 'temporary_absence' ? 'Tạm vắng' : 'Thường trú'}
                 </span>
             </td>
             <td className="py-4 px-6">
@@ -171,6 +185,16 @@ const ResidentListPage = () => {
         }
     };
 
+    const handleResidenceChangeSubmit = async (data) => {
+        try {
+            await residenceChangeApi.create(data);
+            await fetchData(); // Refresh list to see status changes
+            setIsChangeModalOpen(false);
+        } catch (error) {
+            alert(error.response?.data?.message || "Lỗi khi lưu biến đổi nhân khẩu");
+        }
+    };
+
     const handleDelete = async (id) => {
         if (window.confirm('Bạn có chắc chắn muốn xóa nhân khẩu này?')) {
             try {
@@ -189,13 +213,22 @@ const ResidentListPage = () => {
                 <div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">Quản lý nhân khẩu</h2>
                 </div>
-                <Button
-                    onClick={() => handleOpenModal()}
-                    className="bg-linear-to-r from-blue-500 to-cyan-500"
-                >
-                    <Plus className="w-5 h-5" />
-                    Thêm nhân khẩu
-                </Button>
+                <div className="flex gap-3">
+                    <Button
+                        onClick={() => setIsChangeModalOpen(true)}
+                        className="bg-white border border-gray-200 shadow-sm hover:bg-linear-to-r from-blue-500 to-cyan-500 min-w-[200px]"
+                    >
+                        <ArrowRightLeft className="w-5 h-5 mr-1" />
+                        Biến đổi nhân khẩu
+                    </Button>
+                    <Button
+                        onClick={() => handleOpenModal()}
+                        className="bg-linear-to-r from-blue-500 to-cyan-500"
+                    >
+                        <Plus className="w-5 h-5" />
+                        Thêm nhân khẩu
+                    </Button>
+                </div>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -346,6 +379,14 @@ const ResidentListPage = () => {
                     </form>
                 </div>
             </Modal>
+
+            <ResidenceChangeModal 
+                isOpen={isChangeModalOpen}
+                onClose={() => setIsChangeModalOpen(false)}
+                residents={residents}
+                households={households}
+                onSubmit={handleResidenceChangeSubmit}
+            />
         </div>
     );
 };

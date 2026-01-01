@@ -9,7 +9,7 @@ const residentSchema = mongoose.Schema({
 	relationToOwner: { type: String, required: true, enum: ['owner', 'spouse', 'child', 'parent', 'sibling', 'relative', 'renter', 'other'] }, // Mối quan hệ với chủ hộ
 	phone: { type: String },
 	email: { type: String },
-	status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+	status: { type: String, enum: ['permanent', 'temporary_residence', 'temporary_absence'], default: 'permanent' },
 	household: { type: mongoose.Schema.Types.ObjectId, ref: 'Household', required: true }
 }, { timestamps: true });
 
