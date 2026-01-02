@@ -7,6 +7,7 @@ import LoginPage from './pages/Auth/LoginPage';
 import Dashboard from './pages/Dashboard/DashboardPage';
 import HouseholdPage from './pages/Household/HouseholdPage'; // Trang hộ khẩu
 import ResidentListPage from './pages/Household/ResidentListPage';   // Trang nhân khẩu
+import ResidenceChangePage from './pages/Household/ResidenceChangePage'; // Trang biến đổi nhân khẩu
 import FeeManagerPage from './pages/Fees/FeeManagerPage';    // Trang khoản thu
 import PaymentCollectionPage from './pages/Fees/PaymentCollectionPage'; // Trang đợt thu
 import UserManagementPage from './pages/Admin/UserManagementPage'; // Trang quản lý user
@@ -60,6 +61,7 @@ function App() {
                         <Route path="/" element={<Dashboard />} />
                         <Route path="/ho-khau" element={<HouseholdPage />} />
                         <Route path="/nhan-khau" element={<ResidentListPage />} />
+                        <Route path="/bien-doi-nhan-khau" element={<ResidenceChangePage />} />
                         <Route path="/quan-ly-phi" element={<FeeManagerPage />} />
                         <Route path="/dot-thu" element={<PaymentCollectionPage />} />
                         <Route path="/nguoi-dung" element={<UserManagementPage />} />

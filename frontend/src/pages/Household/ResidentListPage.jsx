@@ -8,8 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import DatePicker from "react-datepicker";
 import residentsApi from '../../api/residentsApi';
 import householdApi from '../../api/householdApi';
-import ResidenceChangeModal from './ResidenceChangeModal';
-import residenceChangeApi from '../../api/residenceChangeApi';
+import { useNavigate } from 'react-router-dom';
 
 // const initialResidents = [
 //     { id: 1, name: 'Nguyễn Văn A', idCard: '001234567890', birthDate: '15/05/1980', gender: 'Nam', phone: '0901234567', apartment: 'A101', relationship: 'Chủ hộ', moveInDate: '01/01/2020' },
@@ -20,12 +19,12 @@ import residenceChangeApi from '../../api/residenceChangeApi';
 
 const ResidentListPage = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [residents, setResidents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResident, setEditingResident] = useState(null);
-    const [isChangeModalOpen, setIsChangeModalOpen] = useState(false);
     const [households, setHouseholds] = useState([]);
     const [aptSearch, setAptSearch] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -185,16 +184,6 @@ const ResidentListPage = () => {
         }
     };
 
-    const handleResidenceChangeSubmit = async (data) => {
-        try {
-            await residenceChangeApi.create(data);
-            await fetchData(); // Refresh list to see status changes
-            setIsChangeModalOpen(false);
-        } catch (error) {
-            alert(error.response?.data?.message || "Lỗi khi lưu biến đổi nhân khẩu");
-        }
-    };
-
     const handleDelete = async (id) => {
         if (window.confirm('Bạn có chắc chắn muốn xóa nhân khẩu này?')) {
             try {
@@ -215,7 +204,7 @@ const ResidentListPage = () => {
                 </div>
                 <div className="flex gap-3">
                     <Button
-                        onClick={() => setIsChangeModalOpen(true)}
+                        onClick={() => navigate('/bien-doi-nhan-khau')}
                         className="bg-white border border-gray-200 shadow-sm hover:bg-linear-to-r from-blue-500 to-cyan-500 min-w-[200px]"
                     >
                         <ArrowRightLeft className="w-5 h-5 mr-1" />
@@ -379,14 +368,6 @@ const ResidentListPage = () => {
                     </form>
                 </div>
             </Modal>
-
-            <ResidenceChangeModal 
-                isOpen={isChangeModalOpen}
-                onClose={() => setIsChangeModalOpen(false)}
-                residents={residents}
-                households={households}
-                onSubmit={handleResidenceChangeSubmit}
-            />
         </div>
     );
 };

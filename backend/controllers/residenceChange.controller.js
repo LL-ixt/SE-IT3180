@@ -60,8 +60,44 @@ const createResidenceChange = async (req, res) => {
 };
 
 const getResidenceChanges = async (req, res) => {
-    // Logic lấy danh sách (nếu cần sau này)
-    res.status(200).json([]);
+    try {
+        const changes = await ResidenceChange.find({})
+            .populate({
+                path: 'resident',
+                populate: { path: 'household', select: 'apartmentNumber' }
+            })
+            .populate('household', 'apartmentNumber')
+            .sort({ createdAt: -1 });
+        res.status(200).json(changes);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 };
 
-module.exports = { createResidenceChange, getResidenceChanges };
+const updateResidenceChange = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updatedChange = await ResidenceChange.findByIdAndUpdate(id, req.body, { new: true });
+        
+        // Nếu loại biến đổi thay đổi, cập nhật lại trạng thái nhân khẩu
+        if (updatedChange && req.body.changeType) {
+             await Resident.findByIdAndUpdate(updatedChange.resident, { status: req.body.changeType });
+        }
+
+        res.status(200).json(updatedChange);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const deleteResidenceChange = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await ResidenceChange.findByIdAndDelete(id);
+        res.status(200).json({ message: "Đã xóa thành công" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { createResidenceChange, getResidenceChanges, updateResidenceChange, deleteResidenceChange };

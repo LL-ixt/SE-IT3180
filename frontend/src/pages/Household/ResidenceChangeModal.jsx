@@ -5,7 +5,7 @@ import { Search } from 'lucide-react';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
-const ResidenceChangeModal = ({ isOpen, onClose, residents, households, onSubmit }) => {
+const ResidenceChangeModal = ({ isOpen, onClose, residents, households, onSubmit, initialData }) => {
     const [formData, setFormData] = useState({
         residentId: '',
         changeType: 'temporary_residence', // temporary_residence | temporary_absence
@@ -27,22 +27,48 @@ const ResidenceChangeModal = ({ isOpen, onClose, residents, households, onSubmit
 
     useEffect(() => {
         if (isOpen) {
-            // Reset form
-            setFormData({
-                residentId: '',
-                changeType: 'temporary_residence',
-                startDate: new Date(),
-                endDate: null,
-                householdId: '',
-                destination: '',
-                note: ''
-            });
-            setResidentSearch('');
-            setSelectedResident(null);
-            setHouseholdSearch('');
-            setSelectedHousehold(null);
+            if (initialData) {
+                // Chế độ chỉnh sửa
+                setFormData({
+                    residentId: initialData.resident?._id || initialData.resident,
+                    changeType: initialData.changeType,
+                    startDate: new Date(initialData.startDate),
+                    endDate: initialData.endDate ? new Date(initialData.endDate) : null,
+                    householdId: initialData.household?._id || initialData.household || '',
+                    destination: initialData.destination || '',
+                    note: initialData.note || ''
+                });
+
+                // Set hiển thị cho ô search
+                if (initialData.resident) {
+                    setResidentSearch(initialData.resident.fullName || '');
+                    // Tìm object đầy đủ trong danh sách residents nếu cần
+                    const fullResident = residents.find(r => r._id === (initialData.resident._id || initialData.resident));
+                    if (fullResident) setSelectedResident(fullResident);
+                }
+                if (initialData.household) {
+                    setHouseholdSearch(initialData.household.apartmentNumber || '');
+                    const fullHousehold = households.find(h => h._id === (initialData.household._id || initialData.household));
+                    if (fullHousehold) setSelectedHousehold(fullHousehold);
+                }
+            } else {
+                // Chế độ thêm mới (Reset form)
+                setFormData({
+                    residentId: '',
+                    changeType: 'temporary_residence',
+                    startDate: new Date(),
+                    endDate: null,
+                    householdId: '',
+                    destination: '',
+                    note: ''
+                });
+                setResidentSearch('');
+                setSelectedResident(null);
+                setHouseholdSearch('');
+                setSelectedHousehold(null);
+            }
         }
-    }, [isOpen]);
+    }, [isOpen, initialData, residents, households]);
 
     // Filter residents
     const suggestedResidents = residents.filter(r =>
@@ -88,7 +114,7 @@ const ResidenceChangeModal = ({ isOpen, onClose, residents, households, onSubmit
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
             <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-6">Đăng ký biến đổi nhân khẩu</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-6">{initialData ? 'Chỉnh sửa biến đổi nhân khẩu' : 'Đăng ký biến đổi nhân khẩu'}</h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Resident Search */}
                     <div className="relative">
@@ -232,7 +258,7 @@ const ResidenceChangeModal = ({ isOpen, onClose, residents, households, onSubmit
 
                     <div className="flex gap-4 pt-6 mt-6 border-t border-gray-100">
                         <Button type="button" onClick={onClose} className="flex-1 bg-gray-300 text-gray-700">Hủy</Button>
-                        <Button type="submit" className="flex-1 bg-linear-to-r from-blue-500 to-cyan-500 font-bold shadow-lg shadow-blue-200">Lưu</Button>
+                        <Button type="submit" className="flex-1 bg-linear-to-r from-blue-500 to-cyan-500 font-bold shadow-lg shadow-blue-200">{initialData ? 'Cập nhật' : 'Lưu'}</Button>
                     </div>
                 </form>
             </div>
