@@ -11,11 +11,10 @@ import feeApi from '../../api/feeApi';
 import householdApi from '../../api/householdApi';
 import TransactionList from '../PaymentSessions/TransactionList';
 import PaymentGrid from './PaymentGrid';
-// const existingFeeTypes = [
-//     { id: 1, name: 'Phí quản lý chung cư', price: 7000 },
-//     { id: 2, name: 'Phí vệ sinh', price: 30000 },
-//     { id: 3, name: 'Phí gửi xe máy', price: 80000 },
-// ];
+import * as XLSX from 'xlsx-js-style';
+
+
+
 const unitMap = {
     area: 'm²',
     car: 'ô tô',
@@ -31,20 +30,20 @@ const PaymentCollectionPage = () => {
     // State quản lý danh sách đợt thu
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
-    
+
     // View state: LIST | DETAIL | INPUT_MONEY
     const [view, setView] = useState('LIST');
     const [currentSession, setCurrentSession] = useState(null);
-    
+
     // Modal states
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
     const [isAddFeeModalOpen, setIsAddFeeModalOpen] = useState(false);
     const [isNewFeeModalOpen, setIsNewFeeModalOpen] = useState(false);
-    
+
     // Logic thêm khoản thu
     const [addFeeStep, setAddFeeStep] = useState('CHOICE');
     const [newFeeForm, setNewFeeForm] = useState({ name: '', price: '' });
-    
+
     // Logic nhập tiền
     const [selectedFeeForInput, setSelectedFeeForInput] = useState(null);
     const [inputData, setInputData] = useState({});
@@ -88,7 +87,7 @@ const PaymentCollectionPage = () => {
             // Luôn lấy dữ liệu từ bảng chi tiết (có mảng items)
             const res = await paymentSessionApi.getPaymentDetails(currentSession._id);
             const details = Array.isArray(res.data) ? res.data : [];
-            
+
             setHouseholdDetails(details); // Cập nhật state chung
 
             // Xử lý dữ liệu input nếu đang ở view nhập liệu
@@ -141,12 +140,12 @@ const PaymentCollectionPage = () => {
 
     const handleDeleteSession = async (id) => {
         if (window.confirm('Xác nhận xóa đợt thu?')) {
-                try {
-                    await paymentSessionApi.remove(id);
-                    fetchSessions();
-                } catch (error) {
-                    alert('Lỗi khi xóa');
-                }
+            try {
+                await paymentSessionApi.remove(id);
+                fetchSessions();
+            } catch (error) {
+                alert('Lỗi khi xóa');
+            }
         }
     }
 
@@ -156,14 +155,14 @@ const PaymentCollectionPage = () => {
                 // feeIdInSession chính là cái _id nằm ngang hàng với fee object trong mảng fees
                 // Endpoint: /api/payments/sessions/:session_id/:fee_id
                 await paymentSessionApi.removeFee(currentSession._id, feeIdInSession);
-                
+
                 // Cập nhật lại state tại chỗ để giao diện biến mất khoản phí đó ngay
                 const updatedFees = currentSession.fees.filter(f => f._id !== feeIdInSession);
                 const updatedSession = { ...currentSession, fees: updatedFees };
-                
+
                 setCurrentSession(updatedSession);
                 setSessions(sessions.map(s => s._id === currentSession._id ? updatedSession : s));
-                
+
                 alert('Đã xóa khoản phí thành công');
             } catch (error) {
                 console.error('Lỗi khi xóa khoản phí:', error);
@@ -174,16 +173,16 @@ const PaymentCollectionPage = () => {
 
     const handleToggleCell = async (row, item) => {
         try {
-            const payload = item === 'ALL_MANDATORY' 
-                ? { mode: 'ALL_MANDATORY' } 
+            const payload = item === 'ALL_MANDATORY'
+                ? { mode: 'ALL_MANDATORY' }
                 : { feeInSessionId: item.feeInSessionId, mode: 'SINGLE' };
 
             // Gọi API cập nhật trạng thái
             await paymentSessionApi.toggleFeePayment(row._id, payload);
-            
+
             // Load lại dữ liệu để bảng đổi sang màu xanh (isPaid: true)
             await fetchPaymentDetails();
-            
+
             // Tùy chọn: Refresh danh sách giao dịch bên cột phải nếu cần
             // fetchTransactions(); 
         } catch (error) {
@@ -204,10 +203,10 @@ const PaymentCollectionPage = () => {
             }];
 
             await paymentSessionApi.updateColumnQuantity(currentSession._id, item.feeInSessionId, updates);
-            
+
             // Sau khi lưu xong, fetch lại để Grid hiện màu xanh
             await fetchPaymentDetails();
-            
+
         } catch (error) {
             console.error("Lỗi cập nhật phí tự nguyện:", error);
         }
@@ -224,38 +223,38 @@ const PaymentCollectionPage = () => {
                 unitPrice: data.unitPrice
             };
             const feeResponse = await feeApi.create(feePayload);
-            
+
             // Add fee to session
-            const updatedSession = { 
-                ...currentSession, 
-                fees: [...(currentSession.fees || []), { fee: feeResponse.data._id, unitPrice: data.unitPrice }] 
+            const updatedSession = {
+                ...currentSession,
+                fees: [...(currentSession.fees || []), { fee: feeResponse.data._id, unitPrice: data.unitPrice }]
             };
             const sessionResponse = await paymentSessionApi.update(currentSession._id || currentSession.id, updatedSession);
             setCurrentSession(sessionResponse.data);
             setSessions(sessions.map(s => (s._id || s.id) === (currentSession._id || currentSession.id) ? sessionResponse.data : s));
-            
+
             setIsNewFeeModalOpen(false);
         } catch (error) {
             console.error('Lỗi thêm khoản thu:', error);
             alert('Thêm khoản thu thất bại');
         }
     };
-    
+
     const handleAddFeeToSession = async (fee) => {
         try {
-            const updatedSession = { 
-                ...currentSession, 
+            const updatedSession = {
+                ...currentSession,
                 fees: [...(currentSession.fees || []), { fee: fee._id || fee.id, unitPrice: fee.unitPrice }],
             };
-            
+
             // 1. Cập nhật Session (Backend sẽ tự gọi syncHouseholdPayments trong editPaymentSession)
             const response = await paymentSessionApi.update(currentSession._id || currentSession.id, updatedSession);
-            
+
             setCurrentSession(response.data);
             setSessions(sessions.map(s => (s._id || s.id) === (currentSession._id || currentSession.id) ? response.data : s));
 
             // 2. QUAN TRỌNG: Fetch lại chi tiết bảng thu để PaymentGrid cập nhật "cột" mới
-            await fetchPaymentDetails(); 
+            await fetchPaymentDetails();
 
             setIsAddFeeModalOpen(false);
             setAddFeeStep('CHOICE');
@@ -269,7 +268,7 @@ const PaymentCollectionPage = () => {
         try {
             const sessionId = currentSession._id;
             const feeInSessionId = selectedFeeForInput._id; // Đây chính là định danh của "cột"
-            
+
             // Chuẩn bị payload: Danh sách { householdId, quantity }
             const updates = Object.keys(inputData).map(hhId => ({
                 householdId: hhId,
@@ -277,12 +276,12 @@ const PaymentCollectionPage = () => {
             }));
 
             await paymentSessionApi.updateColumnQuantity(sessionId, feeInSessionId, updates);
-            
+
             alert(`Đã cập nhật số liệu cho cột "${selectedFeeForInput.fee?.name}" thành công!`);
-            setInputData({}); 
-            setSelectedFeeForInput(null); 
+            setInputData({});
+            setSelectedFeeForInput(null);
             setView('DETAIL');
-            
+
             // Nếu bạn muốn dữ liệu ở trang Detail cũng mới luôn mà ko cần F5:
             fetchSessions();
         } catch (error) {
@@ -321,8 +320,8 @@ const PaymentCollectionPage = () => {
                     const progress = totalMandatory > 0 ? Math.round((paidMandatory / totalMandatory) * 100) : 0;
 
                     return (
-                        <div 
-                            key={s._id || s.id} 
+                        <div
+                            key={s._id || s.id}
                             className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all duration-300 overflow-hidden relative"
                         >
                             <div className="p-8">
@@ -333,29 +332,28 @@ const PaymentCollectionPage = () => {
                                             {s.title}
                                         </h3>
                                         <p className="text-gray-400 font-medium text-lg">
-                                            {new Date(s.startDate).toLocaleDateString('vi-VN')} 
+                                            {new Date(s.startDate).toLocaleDateString('vi-VN')}
                                             {s.endDate ? ` — ${new Date(s.endDate).toLocaleDateString('vi-VN')}` : ' — Hiện tại'}
                                         </p>
                                     </div>
-                                    
+
                                     <div className="flex items-center gap-3">
-                                        <span className={`${
-                                            s.isActive 
-                                            ? 'bg-green-500 text-white shadow-lg shadow-green-100' 
+                                        <span className={`${s.isActive
+                                            ? 'bg-green-500 text-white shadow-lg shadow-green-100'
                                             : 'bg-gray-400 text-white'
-                                        } px-6 py-2 rounded-xl text-sm font-bold transition-transform`}>
+                                            } px-6 py-2 rounded-xl text-sm font-bold transition-transform`}>
                                             {s.isActive ? 'Đang hoạt động' : 'Đã kết thúc'}
                                         </span>
-                                        
+
                                         {/* Nút hành động nổi */}
                                         <div className="flex gap-2">
-                                            <button 
+                                            <button
                                                 onClick={() => { setCurrentSession(s); setView('DETAIL'); }}
                                                 className="p-3 bg-blue-100 text-blue-600 rounded-xl hover:bg-blue-500 hover:text-white transition-all shadow-sm"
                                             >
                                                 <Eye size={14} />
                                             </button>
-                                            <button 
+                                            <button
                                                 onClick={() => handleDeleteSession(s._id)}
                                                 className="p-3 bg-red-100 text-red-600 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
                                             >
@@ -372,7 +370,7 @@ const PaymentCollectionPage = () => {
                                         <span className="text-xl text-blue-600">{progress}%</span>
                                     </div>
                                     <div className="w-full h-4 bg-gray-100 rounded-full overflow-hidden border-4 border-white shadow-inner">
-                                        <div 
+                                        <div
                                             className="h-full bg-linear-to-r from-blue-600 to-cyan-400 rounded-full transition-all duration-1000 ease-out"
                                             style={{ width: `${progress}%` }}
                                         ></div>
@@ -384,7 +382,7 @@ const PaymentCollectionPage = () => {
                                     <div>
                                         <p className="text-[10px] text-gray-400 uppercase font-bold">Tổng phí bắt buộc</p>
                                         <p className="text-2xl text-gray-800">
-                                            {paidMandatory.toLocaleString()}đ 
+                                            {paidMandatory.toLocaleString()}đ
                                             <span className="text-gray-300 font-normal"> / {totalMandatory.toLocaleString()}đ</span>
                                         </p>
                                     </div>
@@ -439,10 +437,10 @@ const PaymentCollectionPage = () => {
                         <p className="text-gray-500 text-sm mt-1 italic">{currentSession.description}</p>
                     </div>
                     <div className="flex gap-3">
-                        <Button onClick={() => { setView('APPROVE_TRANSACTION'); setSelectedFeeForInput(null);}} className="bg-pink-500 shadow-lg">
-                            <DollarSign size={18} className="mr-2" /> Duyệt giao dịch
+                        <Button onClick={() => { setView('APPROVE_TRANSACTION'); setSelectedFeeForInput(null); }} className="bg-pink-500 shadow-lg">
+                            <DollarSign size={18} className="mr-2" /> Thống kê phí
                         </Button>
-                        <Button onClick={() => alert('Đang xuất...')} className="bg-emerald-500 shadow-lg shadow-emerald-200">
+                        <Button onClick={handleExportExcel} className="bg-emerald-500 shadow-lg shadow-emerald-200">
                             <FileSpreadsheet size={18} className="mr-2" /> Xuất Excel
                         </Button>
                     </div>
@@ -453,7 +451,7 @@ const PaymentCollectionPage = () => {
                         <ListCheck className="text-blue-600" /> Danh sách các khoản thu
                     </h3>
                     <Button onClick={() => setIsAddFeeModalOpen(true)} className="bg-linear-to-r from-blue-600 to-cyan-500 py-2">
-                        <Plus className="mr-1" size={18}/> Thêm khoản thu
+                        <Plus className="mr-1" size={18} /> Thêm khoản thu
                     </Button>
                 </div>
 
@@ -461,7 +459,7 @@ const PaymentCollectionPage = () => {
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="p-4 bg-blue-50/50 border-b border-blue-100 flex justify-between items-center">
                         <span className="font-bold text-blue-700 text-sm uppercase">1. Bắt buộc - Tự động (Hệ thống tính)</span>
-                        <button 
+                        <button
                             onClick={handleUpdateAutoFees}
                             className="px-4 py-1.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-md shadow-blue-200"
                         >
@@ -471,10 +469,10 @@ const PaymentCollectionPage = () => {
                     <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {mandatoryAutoFees.map((f, idx) => {
                             // Logic tính toán Progress cho từng khoản phí
-                            const relevantItems = householdDetails.flatMap(hd => 
+                            const relevantItems = householdDetails.flatMap(hd =>
                                 hd.items.filter(item => item.feeInSessionId === f.feeInSessionId || item.feeInSessionId === f._id)
                             );
-                            
+
                             const totalExpected = relevantItems.reduce((sum, i) => sum + (i.totalAmount || 0), 0);
                             const totalCollected = relevantItems.reduce((sum, i) => sum + (i.paidAmount || 0), 0);
                             const percentage = totalExpected > 0 ? Math.min(Math.round((totalCollected / totalExpected) * 100), 100) : 0;
@@ -489,7 +487,7 @@ const PaymentCollectionPage = () => {
                                                 {Number(f.unitPrice).toLocaleString()} đ/{getUnitName(f.fee?.unit)}
                                             </span>
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={() => handleDeleteFee(f._id)}
                                             className="p-2 bg-red-100 text-red-400 hover:text-red-600 hover:bg-red-200 rounded-lg transition-all"
                                             title="Xóa khoản phí này"
@@ -505,7 +503,7 @@ const PaymentCollectionPage = () => {
                                             <span className="text-blue-600">{percentage}%</span>
                                         </div>
                                         <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden border border-gray-50">
-                                            <div 
+                                            <div
                                                 className="h-full bg-linear-to-r from-blue-500 to-cyan-400 transition-all duration-700 ease-out rounded-full"
                                                 style={{ width: `${percentage}%` }} // Sửa lỗi cú pháp style
                                             ></div>
@@ -533,10 +531,10 @@ const PaymentCollectionPage = () => {
                     <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {mandatoryManualFees.map((f, idx) => {
                             // Logic tính toán Progress dựa trên householdDetails
-                            const relevantItems = householdDetails.flatMap(hd => 
+                            const relevantItems = householdDetails.flatMap(hd =>
                                 hd.items.filter(item => item.feeInSessionId === f.feeInSessionId || item.feeInSessionId === f._id)
                             );
-                            
+
                             const totalExpected = relevantItems.reduce((sum, i) => sum + (i.totalAmount || 0), 0);
                             const totalCollected = relevantItems.reduce((sum, i) => sum + (i.paidAmount || 0), 0);
                             const percentage = totalExpected > 0 ? Math.min(Math.round((totalCollected / totalExpected) * 100), 100) : 0;
@@ -548,21 +546,21 @@ const PaymentCollectionPage = () => {
                                         <div className="flex flex-col">
                                             <span className="font-bold text-gray-700 leading-tight">{f.fee?.name}</span>
                                             <span className="text-orange-600 font-bold text-[10px] mt-1">
-                                                {f.fee?.unit === 'default' 
-                                                    ? 'Nhập thẳng số tiền' 
+                                                {f.fee?.unit === 'default'
+                                                    ? 'Nhập thẳng số tiền'
                                                     : `${Number(f.unitPrice).toLocaleString()}đ / ${getUnitName(f.fee?.unit) || ''}`
                                                 }
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-1 shrink-0">
-                                            <button 
+                                            <button
                                                 onClick={() => { setSelectedFeeForInput(f); setView('INPUT_MONEY'); }}
                                                 className="p-2 bg-orange-100 text-orange-600 rounded-lg hover:bg-orange-200 transition-all"
                                                 title="Nhập số liệu"
                                             >
                                                 <DollarSign size={14} />
                                             </button>
-                                            <button 
+                                            <button
                                                 onClick={() => handleDeleteFee(f._id)}
                                                 className="p-2 bg-red-100 text-red-400 hover:text-red-600 hover:bg-red-200 rounded-lg transition-all"
                                                 title="Xóa khoản phí này"
@@ -579,7 +577,7 @@ const PaymentCollectionPage = () => {
                                             <span className="text-orange-600">{percentage}%</span>
                                         </div>
                                         <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden border border-gray-50">
-                                            <div 
+                                            <div
                                                 className="h-full bg-linear-to-r from-orange-400 to-red-400 transition-all duration-700 ease-out rounded-full"
                                                 style={{ width: `${percentage}%` }}
                                             ></div>
@@ -607,10 +605,10 @@ const PaymentCollectionPage = () => {
                     <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {voluntaryFees.map((f, idx) => {
                             // Lấy tất cả các item thuộc khoản phí tự nguyện này từ householdDetails
-                            const relevantItems = householdDetails.flatMap(hd => 
+                            const relevantItems = householdDetails.flatMap(hd =>
                                 hd.items.filter(item => item.feeInSessionId === f.feeInSessionId || item.feeInSessionId === f._id)
                             );
-                            
+
                             // Tính tổng số tiền thực thu
                             const totalCollected = relevantItems.reduce((sum, i) => sum + (i.paidAmount || 0), 0);
                             // Đếm số hộ đã tham gia đóng góp (số tiền > 0)
@@ -623,7 +621,7 @@ const PaymentCollectionPage = () => {
                                         <div className="flex flex-col">
                                             <span className="font-bold text-gray-700 leading-tight">{f.fee?.name}</span>
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={() => handleDeleteFee(f._id)}
                                             className="p-2 bg-red-100 text-red-400 hover:text-red-600 hover:bg-red-200 rounded-lg transition-all"
                                             title="Xóa khoản phí này"
@@ -649,9 +647,10 @@ const PaymentCollectionPage = () => {
                         )}
                     </div>
                 </div>
-                            </div>
-                        );
-                    };
+            </div>
+        );
+    };
+
 
     const referenceRecord = householdDetails.find(d => d.items && d.items.length > 0);
 
@@ -662,20 +661,190 @@ const PaymentCollectionPage = () => {
     };
 
     // 2. Tạo headers từ bản ghi mẫu đó
-    const feeHeaders = referenceRecord 
+    const feeHeaders = referenceRecord
         ? [...referenceRecord.items] // Tạo bản sao để tránh đột biến mảng gốc
             .sort((a, b) => {
                 // Sắp xếp theo trọng số của feeType
                 return (typeOrder[a.feeType] || 99) - (typeOrder[b.feeType] || 99);
             })
-            .map(i => ({ 
-                feeInSessionId: i.feeInSessionId, 
-                feeName: i.feeName, 
+            .map(i => ({
+                feeInSessionId: i.feeInSessionId,
+                feeName: i.feeName,
                 feeType: i.feeType, // Cần truyền thêm type sang Grid
-                unitPrice: i.unitPrice 
-            })) 
+                unitPrice: i.unitPrice
+            }))
         : [];
+    // --- HÀM XUẤT EXCEL---
+    const handleExportExcel = () => {
+        if (!currentSession || !currentSession.fees) {
+            alert("Dữ liệu đợt thu chưa tải đủ để xuất Excel!");
+            return;
+        }
 
+        // 1. TỪ ĐIỂN ĐƠN VỊ
+        const getUnitLabel = (unitCode) => {
+            const map = {
+                'area': 'm²', 'water': 'm³', 'electricity': 'kWh',
+                'household': 'hộ', 'person': 'người',
+                'bike': 'xe', 'car': 'xe',
+                'fixed': 'hộ', 'default': 'lượt'
+            };
+            return map[unitCode] || unitCode || '';
+        };
+
+        // 2. CHUẨN BỊ STYLE
+        const styleBase = {
+            font: { name: "Times New Roman", sz: 11 },
+            border: { top: { style: "thin" }, right: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" } },
+            // WrapText: true để xuống dòng trong ô
+            alignment: { vertical: "center", wrapText: true }
+        };
+
+        const styleHeader = {
+            ...styleBase,
+            font: { ...styleBase.font, bold: true },
+            alignment: { horizontal: "center", vertical: "center", wrapText: true },
+            fill: { fgColor: { rgb: "E0E0E0" } }
+        };
+
+        // Style Text (Căn giữa)
+        const styleText = {
+            ...styleBase,
+            alignment: { ...styleBase.alignment, horizontal: "center" }
+        };
+
+        // Style Tiền (Căn phải)
+        const styleMoneyBase = {
+            ...styleBase,
+            alignment: { ...styleBase.alignment, horizontal: "right" }
+        };
+
+        // Style Tiền Xanh (Đã đóng)
+        const styleMoneyPaid = {
+            ...styleMoneyBase,
+            fill: { fgColor: { rgb: "C6EFCE" } },
+            font: { ...styleBase.font, color: { rgb: "006100" } }
+        };
+
+        const fmtCurrency = "#,##0";
+
+        // 3. LẤY HEADER CỘT
+        const tOrder = { 'mandatory_automatic': 1, 'mandatory_manual': 2, 'voluntary': 3 };
+        const excelFeeHeaders = currentSession.fees
+            .filter(f => f.fee)
+            .map(f => ({
+                feeInSessionId: f._id ? f._id.toString() : null,
+                feeName: f.fee.name,
+                feeType: f.fee.type,
+                unitPrice: f.unitPrice || 0,
+                unit: f.fee.unit
+            }))
+            .sort((a, b) => (tOrder[a.feeType] || 99) - (tOrder[b.feeType] || 99));
+
+        if (excelFeeHeaders.length === 0) { alert("Không có khoản thu nào!"); return; }
+
+        // 4. XỬ LÝ DỮ LIỆU BODY
+        const bodyRows = householdDetails.map((record, index) => {
+            const rowCells = [
+                { v: index + 1, s: styleText },
+                { v: record.household?.apartmentNumber || '', s: styleText },
+            ];
+
+            let rowTotalExpected = 0;
+            let rowTotalPaid = 0;
+
+            excelFeeHeaders.forEach(col => {
+                const item = record.items.find(i => i.feeInSessionId && i.feeInSessionId.toString() === col.feeInSessionId);
+                const quantity = Number(item?.quantity || 0);
+                const price = Number(col.unitPrice);
+
+                let cellAmount = 0;
+                if (col.feeType === 'voluntary') {
+                    cellAmount = quantity;
+                } else {
+                    cellAmount = quantity * price;
+                }
+
+                rowTotalExpected += cellAmount;
+
+                let isItemPaid = false;
+                if (item) {
+                    if (item.isPaid === true) isItemPaid = true;
+                    else if ((item.paidAmount || 0) >= (cellAmount - 10) && cellAmount > 0) isItemPaid = true;
+                }
+
+                if (isItemPaid) rowTotalPaid += cellAmount;
+
+                // Chọn style tiền: Đã đóng (Xanh) hoặc Chưa đóng (Thường)
+                const currentMoneyStyle = isItemPaid ? styleMoneyPaid : styleMoneyBase;
+
+                rowCells.push({
+                    v: cellAmount,
+                    s: { ...currentMoneyStyle, numFmt: fmtCurrency }
+                });
+            });
+
+            const isFullPaid = rowTotalExpected > 0 && rowTotalPaid >= (rowTotalExpected - 10);
+            const totalStyle = isFullPaid ? styleMoneyPaid : styleMoneyBase;
+
+            rowCells.push({
+                v: rowTotalExpected,
+                s: {
+                    ...totalStyle,
+                    numFmt: fmtCurrency,
+                    font: { ...styleBase.font, bold: true }
+                }
+            });
+
+            return rowCells;
+        });
+
+        // 5. TẠO HEADER LABEL
+        const feeLabels = excelFeeHeaders.map(c => {
+            const unitName = getUnitLabel(c.unit);
+            if (c.unitPrice > 0) {
+                return `${c.feeName}\n(${c.unitPrice?.toLocaleString()}đ/${unitName})`;
+            } else {
+                return `${c.feeName}\n(Tự nguyện)`;
+            }
+        });
+
+        const headerTextArray = ["STT", "Căn hộ", ...feeLabels, "TỔNG CỘNG"];
+        const headerRow = headerTextArray.map(text => ({ v: text, s: styleHeader }));
+
+        // 6. METADATA & XUẤT FILE
+        const row1 = [{ v: "CHUNG CƯ BLUEMOON", s: { font: { bold: true, sz: 16, name: "Times New Roman" }, alignment: { horizontal: "center" } } }];
+        const row2 = [{ v: `BẢNG THU PHÍ: ${currentSession.title?.toUpperCase()}`, s: { font: { bold: true, sz: 12, name: "Times New Roman" }, alignment: { horizontal: "center" } } }];
+        const row3 = [{ v: `Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, s: { font: { italic: true, name: "Times New Roman" }, alignment: { horizontal: "center" } } }];
+
+        const wsData = [row1, row2, row3, [], headerRow, ...bodyRows];
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+
+        const totalCols = headerRow.length;
+        worksheet['!merges'] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } },
+            { s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } },
+            { s: { r: 2, c: 0 }, e: { r: 2, c: totalCols - 1 } }
+        ];
+
+        // --- CHỈNH ĐỘ RỘNG (WIDTH) ---
+        const wscols = [
+            { wch: 6 },  // STT
+            { wch: 12 }, // Căn hộ
+        ];
+        excelFeeHeaders.forEach(() => wscols.push({ wch: 20 }));
+        wscols.push({ wch: 20 }); // Tổng cộng
+        worksheet['!cols'] = wscols;
+
+        // --- CHỈNH ĐỘ CAO (HEIGHT) CHO DÒNG HEADER ---
+        if (!worksheet['!rows']) worksheet['!rows'] = [];
+        worksheet['!rows'][4] = { hpt: 45 };
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Chi Tiết Thu");
+        XLSX.writeFile(workbook, `Bao_cao_${currentSession.title || 'BlueMoon'}.xlsx`);
+    };
     const renderInputMoney = () => (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white rounded-4xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in zoom-in duration-200">
@@ -695,13 +864,13 @@ const PaymentCollectionPage = () => {
                 </div>
 
                 <div className="p-8 flex-1 overflow-y-auto">
-                    <Table 
+                    <Table
                         headers={[
-                            {label: 'Căn hộ'}, 
-                            {label: selectedFeeForInput?.unitPrice ? `Số lượng (${selectedFeeForInput.fee?.unit})` : 'Số tiền nộp'}, 
-                            {label: 'Thành tiền (Dự kiến)', className: 'text-right'}
+                            { label: 'Căn hộ' },
+                            { label: selectedFeeForInput?.unitPrice ? `Số lượng (${selectedFeeForInput.fee?.unit})` : 'Số tiền nộp' },
+                            { label: 'Thành tiền (Dự kiến)', className: 'text-right' }
                         ]}
-                        data={householdDetails} 
+                        data={householdDetails}
                         renderRow={(item) => {
                             // Logic tính toán tức thì tại Frontend
                             const qty = Number(inputData[item.household?._id] || 0);
@@ -718,8 +887,8 @@ const PaymentCollectionPage = () => {
                                             placeholder="0"
                                             value={inputData[item.household?._id] || ''}
                                             className={`w-full px-4 py-2 border rounded-xl outline-none text-right font-bold transition-all
-                                                ${isInvalid 
-                                                    ? 'border-red-500 bg-red-50 text-red-600 animate-pulse' 
+                                                    ${isInvalid
+                                                    ? 'border-red-500 bg-red-50 text-red-600 animate-pulse'
                                                     : 'bg-gray-50 border-gray-200 text-orange-600 focus:ring-2 focus:ring-orange-500'
                                                 }`}
                                             onChange={(e) => setInputData({ ...inputData, [item.household?._id]: e.target.value })}
@@ -780,8 +949,8 @@ const PaymentCollectionPage = () => {
             {!loading && view === 'APPROVE_TRANSACTION' && (
                 <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                     <div className="flex items-center gap-4 mb-4">
-                        <button 
-                            onClick={() => setView('DETAIL')} 
+                        <button
+                            onClick={() => setView('DETAIL')}
                             className="text-gray-500 hover:text-blue-600 font-medium flex items-center gap-1"
                         >
                             ← Quay lại chi tiết
@@ -790,10 +959,10 @@ const PaymentCollectionPage = () => {
                     <div className="flex h-[calc(100vh-100px)] gap-4 animate-in fade-in duration-300">
                         {/* CỘT TRÁI: BẢNG PAYMENT GRID (Chiếm 75%) */}
                         <div className="w-2/3 h-full">
-                            <PaymentGrid 
+                            <PaymentGrid
                                 details={householdDetails}
                                 feeHeaders={feeHeaders}
-                                
+
                                 // Xử lý khi click vào ô thường (Bật/Tắt màu xanh)
                                 onCellClick={handleToggleCell}
 
@@ -801,12 +970,12 @@ const PaymentCollectionPage = () => {
                                 onVoluntaryChange={handleVoluntaryChange}
                             />
                         </div>
-                            <div className="w-1/3 h-full">
-                                {/* CỘT PHẢI: TRANSACTION LIST (Chiếm 25%) */}
-                                <TransactionList 
-                                    session={currentSession} 
-                                    households={householdDetails}
-                                />
+                        <div className="w-1/3 h-full">
+                            {/* CỘT PHẢI: TRANSACTION LIST (Chiếm 25%) */}
+                            <TransactionList
+                                session={currentSession}
+                                households={householdDetails}
+                            />
                         </div>
                     </div>
                 </div>
@@ -858,7 +1027,7 @@ const PaymentCollectionPage = () => {
                             <Button type="button" onClick={() => setCreateModalOpen(false)} className="flex-1 bg-gray-300 font-bold hover:bg-gray-500 transition-all">Hủy</Button>
                             <Button type="submit" className="flex-1 bg-linear-to-r from-blue-500 to-cyan-500 font-bold shadow-lg shadow-blue-200 transition-all">Tạo đợt thu</Button>
                         </div>
-                        
+
                     </form>
                 </div>
             </Modal>
@@ -873,8 +1042,10 @@ const PaymentCollectionPage = () => {
                                 <span className="font-bold text-gray-700 group-hover:text-blue-700">Chọn khoản thu CÓ SẴN</span>
                                 <ArrowRight size={20} className="text-gray-300 group-hover:text-blue-500" />
                             </button>
-                            <button onClick={() => {setIsAddFeeModalOpen(false); // Đóng modal chọn
-                                    setIsNewFeeModalOpen(true);}} className="w-full p-6 border-2 border-gray-100 rounded-3xl hover:border-emerald-500 hover:bg-emerald-50 flex justify-between items-center group transition-all">
+                            <button onClick={() => {
+                                setIsAddFeeModalOpen(false); // Đóng modal chọn
+                                setIsNewFeeModalOpen(true);
+                            }} className="w-full p-6 border-2 border-gray-100 rounded-3xl hover:border-emerald-500 hover:bg-emerald-50 flex justify-between items-center group transition-all">
                                 <span className="font-bold text-gray-700 group-hover:text-emerald-700">Tạo khoản thu MỚI</span>
                                 <Plus size={20} className="text-gray-300 group-hover:text-emerald-500" />
                             </button>
@@ -889,10 +1060,10 @@ const PaymentCollectionPage = () => {
                                             <span className="font-bold text-gray-800">{f.name}</span>
                                             <span className="text-xs text-gray-400 italic">Gốc: {f.unitPrice?.toLocaleString()}đ/{f.unit}</span>
                                         </div>
-                                        
+
                                         <div className="flex gap-2">
                                             <div className="relative flex-1">
-                                                <input 
+                                                <input
                                                     type="number"
                                                     defaultValue={f.unitPrice}
                                                     id={`price-${f._id}`} // ID để lấy giá trị ghi đè
@@ -901,8 +1072,8 @@ const PaymentCollectionPage = () => {
                                                 />
                                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">VND</span>
                                             </div>
-                                            
-                                            <button 
+
+                                            <button
                                                 onClick={() => {
                                                     // Lấy giá trị từ input ngay phía trên
                                                     const overridePrice = document.getElementById(`price-${f._id}`).value;
@@ -922,10 +1093,10 @@ const PaymentCollectionPage = () => {
                     <div className='pt-5 flex justify-center'>
                         <Button onClick={() => setIsAddFeeModalOpen(false)} className="bg-gray-400">Quay lại</Button>
                     </div>
-                    
+
                 </div>
             </Modal>
-            <AddFeeModal 
+            <AddFeeModal
                 isOpen={isNewFeeModalOpen}
                 onClose={() => setIsNewFeeModalOpen(false)}
                 onSubmit={handleAddNewFeeType}
