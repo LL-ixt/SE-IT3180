@@ -8,13 +8,16 @@ const {
     deleteResident} = require('../controllers/resident.controller');
 
 const { protect } = require('../middleware/auth.middleware');
+const { authorize } = require('../middleware/role.middleware');
 
-// Thêm middleware 'protect' nếu muốn yêu cầu đăng nhập mới được gọi
+// Áp dụng middleware xác thực cho tất cả routes
+router.use(protect);
+
 router.route('/')
-    .get(protect, getResidents)
-    .post(protect, createResident)
+    .get(authorize('admin', 'manager', 'accountant'), getResidents)
+    .post(authorize('admin', 'manager'), createResident);
 
 router.route('/:id')
-    .delete(protect, deleteResident)
-    .put(protect, updateResident)
+    .delete(authorize('admin', 'manager'), deleteResident)
+    .put(authorize('admin', 'manager'), updateResident);
 module.exports = router;
