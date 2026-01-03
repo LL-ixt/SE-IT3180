@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import bgImage from '../../assets/images/background.jpg';
-import { DollarSign, Users, Home, TrendingUp} from 'lucide-react';
-import transactionApi from '../../api/transactionApi';
-import householdApi from '../../api/householdApi';
-import residentsApi from '../../api/residentsApi';
+import { DollarSign, Users, Home, TrendingUp } from 'lucide-react';
+import axios from 'axios';
+
+// Cấu hình đường dẫn API
+const BASE_URL = 'http://localhost:5000/api';
 
 const Dashboard = () => {
     const { user } = useAuth();
+
+    // State lưu các chỉ số thống kê
     const [stats, setStats] = useState([
-        { label: 'Tổng thu tháng này', value: '0đ', change: '+0%', icon: DollarSign, color: 'bg-green-500', key: 'totalCollection' },
-        { label: 'Tổng nhân khẩu', value: '0', change: '+0 người', icon: Users, color: 'bg-blue-500', key: 'totalResidents' },
-        { label: 'Tổng hộ khẩu', value: '0', change: '+0 hộ', icon: Home, color: 'bg-purple-500', key: 'totalHouseholds' },
-        { label: 'Tỷ lệ đóng phí', value: '0%', change: '+0%', icon: TrendingUp, color: 'bg-orange-500', key: 'paymentRate' },
+        { label: 'Tổng thu đợt này', value: '0đ', icon: DollarSign, color: 'bg-green-500', key: 'totalCollection' },
+        { label: 'Tổng nhân khẩu', value: '0', icon: Users, color: 'bg-blue-500', key: 'totalResidents' },
+        { label: 'Tổng hộ khẩu', value: '0', icon: Home, color: 'bg-purple-500', key: 'totalHouseholds' },
+        { label: 'Tỷ lệ hoàn thành', value: '0%', icon: TrendingUp, color: 'bg-orange-500', key: 'paymentRate' },
     ]);
+
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -23,32 +27,44 @@ const Dashboard = () => {
     const fetchDashboardStats = async () => {
         try {
             setLoading(true);
-            
-            // Fetch transactions for total collection
-            const transactionsResponse = await transactionApi.getAll();
-            const transactions = Array.isArray(transactionsResponse.data) ? transactionsResponse.data : [];
-            const totalCollection = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-            
-            // Fetch households
-            const householdsResponse = await householdApi.getAll();
-            const households = Array.isArray(householdsResponse.data) ? householdsResponse.data : [];
-            const totalHouseholds = households.length;
-            
-            // Fetch residents to get total count
-            const residentsResponse = await residentsApi.getAll();
-            const residents = Array.isArray(residentsResponse.data) ? residentsResponse.data : [];
-            const totalResidents = residents.length;
-            
-            // Calculate payment rate (completed transactions / total households)
-            const paymentRate = totalHouseholds > 0 ? Math.round((transactions.length / totalHouseholds) * 100) : 0;
-            
-            // Update stats
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${BASE_URL}/dashboard/stats`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            const data = response.data;
+
             setStats([
-                { label: 'Tổng thu tháng này', value: totalCollection.toLocaleString() + 'đ', change: '+12.5%', icon: DollarSign, color: 'bg-green-500', key: 'totalCollection' },
-                { label: 'Tổng nhân khẩu', value: totalResidents.toString(), change: '+5 người', icon: Users, color: 'bg-blue-500', key: 'totalResidents' },
-                { label: 'Tổng hộ khẩu', value: totalHouseholds.toString(), change: '+2 hộ', icon: Home, color: 'bg-purple-500', key: 'totalHouseholds' },
-                { label: 'Tỷ lệ đóng phí', value: paymentRate + '%', change: '+3.2%', icon: TrendingUp, color: 'bg-orange-500', key: 'paymentRate' },
+                {
+                    label: 'Tổng thu đợt này',
+                    value: (data.totalRevenue || 0).toLocaleString('vi-VN') + 'đ',
+                    icon: DollarSign,
+                    color: 'bg-green-500',
+                    key: 'totalCollection'
+                },
+                {
+                    label: 'Tổng nhân khẩu',
+                    value: (data.totalResidents || 0).toString(),
+                    icon: Users,
+                    color: 'bg-blue-500',
+                    key: 'totalResidents'
+                },
+                {
+                    label: 'Tổng hộ khẩu',
+                    value: (data.totalHouseholds || 0).toString(),
+                    icon: Home,
+                    color: 'bg-purple-500',
+                    key: 'totalHouseholds'
+                },
+                {
+                    label: 'Tỷ lệ hoàn thành',
+                    value: (data.paymentRate || 0) + '%',
+                    icon: TrendingUp,
+                    color: 'bg-orange-500',
+                    key: 'paymentRate'
+                },
             ]);
+
         } catch (error) {
             console.error('Lỗi tải thống kê dashboard:', error);
         } finally {
@@ -57,12 +73,7 @@ const Dashboard = () => {
     };
 
     return (
-        // 2. ĐÃ SỬA: Xóa 'grid grid-cols-[270px_1fr] gap-8'.
-        // Giờ nó chỉ là một thẻ div full chiều rộng nằm gọn trong phần nội dung của MainLayout
         <div className="relative w-full h-full min-h-[calc(100vh-80px)]">
-
-            {/* 3. ĐÃ XÓA: <Sidebar /> ở đây */}
-
             {loading && (
                 <div className="flex items-center justify-center h-screen">
                     <div className="text-center">
@@ -89,7 +100,10 @@ const Dashboard = () => {
                         </div>
                         <div className="mt-10">
                             <div className="p-4 inline-flex bg-white/10 rounded-2xl border border-white/10">
-                                <p className="text-sm font-bold text-white">Tổng quan {new Date().toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}</p>
+                                {/* ĐÃ SỬA: Luôn hiển thị Tổng quan tháng/năm hiện tại */}
+                                <p className="text-sm font-bold text-white uppercase">
+                                    Tổng quan {new Date().toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
+                                </p>
                             </div>
                         </div>
                         <div className="py-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -101,7 +115,6 @@ const Dashboard = () => {
                                             <div className={`${stat.color} w-12 h-12 border border-white/20 shadow-2xl shadow-white rounded-lg flex items-center justify-center`}>
                                                 <Icon className="w-6 h-6 text-white" />
                                             </div>
-                                            <span className="text-green-600 text-sm font-medium bg-green-50 px-2 py-1 rounded-full">{stat.change}</span>
                                         </div>
                                         <p className="text-white text-sm mb-1">{stat.label}</p>
                                         <p className="text-2xl font-bold text-white">{stat.value}</p>
