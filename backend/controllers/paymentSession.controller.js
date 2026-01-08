@@ -423,7 +423,8 @@ const calculateAutoFees = async (req, res) => {
             doc.items.forEach(item => {
                 console.log("item: ", item);
                 // Chỉ tính toán cho các loại phí có type là 'mandatory_automatic'
-                if (item.feeType === 'mandatory_automatic' && household.status === 'active') {
+                if (household.status === 'inactive') item.quantity = 0;
+                else if (item.feeType === 'mandatory_automatic') {
                     // Logic tính toán quantity dựa trên đơn vị (unit)
                     // Giả sử unit được lưu trong item hoặc lấy từ Fee gốc
                     switch (item.unit) {

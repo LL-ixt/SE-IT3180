@@ -123,9 +123,6 @@ const getTransactionsBySession = async (req, res) => {
             .populate('createdBy', 'name') // Lấy tên người tạo giao dịch
             .sort({ createdAt: -1 }); // Hiện giao dịch mới nhất lên đầu
 
-        // Debug để kiểm tra dữ liệu thực tế tại Server
-        console.log(`Tìm thấy ${transactions.length} giao dịch cho session: ${id}`);
-
         res.status(200).json(transactions);
     } catch (error) {
         console.error("Lỗi Controller:", error);
