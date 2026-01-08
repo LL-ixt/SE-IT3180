@@ -16,6 +16,22 @@ const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 // @access    Private
 const getPaymentSessions = async (req, res) => {
     try {
+        const now = new Date();
+        await PaymentSession.updateMany(
+            {
+                $or: [
+                    { endDate: { $lt: now } }    // Đã quá hạn
+                ]
+            },
+            { $set: { isActive: false } }
+        );
+        await PaymentSession.updateMany(
+            {
+                startDate: { $lte: now },
+                endDate: { $gte: now }
+            },
+            { $set: { isActive: true } }
+        );
         // Populate fees to see which specific Fee model is referenced
         const sessions = await PaymentSession.find({})
             .populate({
@@ -141,33 +157,45 @@ const syncHouseholdPayments = async (session) => {
 // @access    Private
 const editPaymentSession = async (req, res) => {
     const { id } = req.params;
+    const updateData = req.body;
 
     if (!isValidId(id)) {
         return res.status(400).json({ message: 'Invalid Session ID format' });
     }
 
     try {
-        // 1. Cập nhật Session và Populate đầy đủ để lấy tên phí
+        // 1. Tìm session cũ để so sánh trước khi update
+        const oldSession = await PaymentSession.findById(id);
+        if (!oldSession) {
+            return res.status(404).json({ message: 'Payment Session not found' });
+        }
+
+        // 2. Kiểm tra xem có thay đổi những trường quan trọng không
+        // (startDate, endDate, hoặc danh sách fees)
+        const isCriticalUpdate = 
+            (updateData.startDate && new Date(updateData.startDate).getTime() !== oldSession.startDate.getTime()) ||
+            (updateData.endDate && new Date(updateData.endDate).getTime() !== oldSession.endDate.getTime()) ||
+            (updateData.fees); // Nếu có mảng fees mới
+
+        // 3. Thực hiện cập nhật
         const updatedSession = await PaymentSession.findByIdAndUpdate(
             id,
-            req.body,
+            updateData,
             { new: true, runValidators: true }
         ).populate({
             path: 'fees.fee',
             select: 'name type unit'
         });
 
-        if (!updatedSession) {
-            return res.status(404).json({ message: 'Payment Session not found' });
+        // 4. Chỉ đồng bộ lại bảng thu nếu có thay đổi quan trọng
+        if (isCriticalUpdate) {
+            console.log("Phát hiện thay đổi về ngày hoặc phí. Bắt đầu đồng bộ lại...");
+            await syncHouseholdPayments(updatedSession);
         }
-        console.log("Sẽ gọi hàm sync");
-        // 2. TỰ ĐỘNG SINH BẢN GHI CHO TỪNG CĂN HỘ
-        // Hàm này sẽ tạo {Số căn hộ} bản ghi trong HouseholdPaymentDetail
-        await syncHouseholdPayments(updatedSession);
 
         res.status(200).json(updatedSession);
     } catch (error) {
-        console.error("Lỗi đồng bộ bảng thu:", error);
+        console.error("Lỗi cập nhật phiên thu:", error);
         res.status(400).json({ message: 'Error updating payment session', error: error.message });
     }
 };

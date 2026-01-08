@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Eye, FileSpreadsheet, CheckCircle, ArrowRight, DollarSign, Calendar, CalendarIcon, ListCheck, Trash2, Factory } from 'lucide-react';
+import { Plus, Eye, FileSpreadsheet, CheckCircle, ArrowRight, DollarSign, Calendar, CalendarIcon, ListCheck, Trash2, Factory, Edit } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import Table from '../../components/common/Table';
 import { Button } from '../../components/common/Button';
@@ -11,6 +11,7 @@ import feeApi from '../../api/feeApi';
 import householdApi from '../../api/householdApi';
 import TransactionList from '../PaymentSessions/TransactionList';
 import PaymentGrid from './PaymentGrid';
+import EditPaymentSession from '../PaymentSessions/EditPaymentSessionModal';
 import { useAuth } from '../../context/AuthContext';
 // const existingFeeTypes = [
 //     { id: 1, name: 'Phí quản lý chung cư', price: 7000 },
@@ -41,9 +42,10 @@ const PaymentCollectionPage = () => {
     // View state: LIST | DETAIL | INPUT_MONEY
     const [view, setView] = useState('LIST');
     const [currentSession, setCurrentSession] = useState(null);
-
+    
     // Modal states
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isAddFeeModalOpen, setIsAddFeeModalOpen] = useState(false);
     const [isNewFeeModalOpen, setIsNewFeeModalOpen] = useState(false);
 
@@ -145,6 +147,25 @@ const PaymentCollectionPage = () => {
         } catch (error) {
             console.error('Lỗi tạo đợt thu:', error);
             alert('Tạo đợt thu thất bại');
+        }
+    };
+
+    const handleUpdateSession = async (updatedData) => {
+        try {
+            // updatedData sẽ bao gồm cả _id lấy từ initialData
+            const response = await paymentSessionApi.update(updatedData._id, updatedData);;
+            
+            if (response.status === 200) {
+                // 1. Cập nhật lại danh sách hiển thị tại chỗ (để không phải load lại trang)
+                setSessions(prevSessions => 
+                    prevSessions.map(s => s._id === updatedData._id ? response.data : s)
+                );
+                
+                // 2. Thông báo thành công (nếu có toast)
+            }
+        } catch (error) {
+            console.error("Lỗi khi cập nhật:", error);
+            alert("Có lỗi xảy ra khi lưu thay đổi.");
         }
     };
 
@@ -365,6 +386,14 @@ const PaymentCollectionPage = () => {
                                             >
                                                 <Eye size={14} />
                                             </button>
+                                            {canEdit && (
+                                                <button
+                                                    onClick={() => {setCurrentSession(s); setIsEditModalOpen(true);}}
+                                                    className="p-3 bg-amber-100 text-amber-600 rounded-xl hover:bg-amber-500 hover:text-white transition-all shadow-sm"
+                                                >
+                                                    <Edit size={14} /> 
+                                                </button>
+                                            )}
                                             {canEdit && (
                                             <button 
                                                 onClick={() => handleDeleteSession(s._id)}
@@ -1065,7 +1094,7 @@ const PaymentCollectionPage = () => {
                     <h3 className="text-xl font-bold text-gray-800 mb-8 text-center uppercase tracking-tight">Thêm khoản thu</h3>
                     {addFeeStep === 'CHOICE' && (
                         <div className="space-y-4">
-                            <button onClick={() => setAddFeeStep('EXISTING')} className="w-full p-6 border-2 border-gray-100 rounded-[24px] hover:border-blue-500 hover:bg-blue-50 flex justify-between items-center group transition-all">
+                            <button onClick={() => setAddFeeStep('EXISTING')} className="w-full p-6 border-2 border-gray-100 rounded-3xl hover:border-blue-500 hover:bg-blue-50 flex justify-between items-center group transition-all">
                                 <span className="font-bold text-gray-700 group-hover:text-blue-700">Chọn khoản thu CÓ SẴN</span>
                                 <ArrowRight size={20} className="text-gray-300 group-hover:text-blue-500" />
                             </button>
@@ -1127,6 +1156,12 @@ const PaymentCollectionPage = () => {
                 isOpen={isNewFeeModalOpen}
                 onClose={() => setIsNewFeeModalOpen(false)}
                 onSubmit={handleAddNewFeeType}
+            />
+            <EditPaymentSession
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                initialData={currentSession} // Truyền session đang được chọn vào đây
+                onSubmit={handleUpdateSession} // Hàm gọi API update
             />
         </div>
     );
